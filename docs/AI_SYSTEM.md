@@ -13,8 +13,11 @@ interface LLMProvider {
 - `anthropic.ts` implements `generateObject` via tool-use with a JSON schema derived from Zod
   (`zod-to-json-schema`), then `schema.parse`. On failure: one repair retry including the Zod error.
 - `mock.ts` returns deterministic fixtures (used by tests, E2E and keyless dev).
-- Factory picks provider from `AI_PROVIDER`; model per task (chat = fast model, analysis = strongest model).
-- Every call goes through `withUsage(userId)` (quota check + increment) and a timeout.
+- Factory picks provider from `AI_PROVIDER` (default `mock`); model per task (chat = fast model, analysis =
+  strongest model) from `AI_MODEL_CHAT` / `AI_MODEL_ANALYSIS`. There are **no hardcoded model ids**: the
+  provider and model ids are chosen and checked against the provider's current model list in M6. A real
+  provider with a missing key or model id fails at startup of that code path with a clear error.
+- Every call first calls the `consume_ai_quota()` RPC (see DATABASE.md) and has a timeout.
 
 ## Services (src/lib/ai/services)
 
@@ -63,7 +66,8 @@ ConversationReview = z.object({
   corrections: z.array(z.object({
     messageId: z.string().uuid(),
     original: z.string(), improved: z.string(),
-    category: z.enum(["naturalness", "grammar", "vocabulary", "pragmatics", "register"]),
+    category: CategoryEnum,                    // same taxonomy as gaps (taxonomy.ts)
+    subCategory: SubCategoryEnum.nullable(),   // must belong to category (superRefine)
     isGrammatical: z.boolean(),
     explanation: z.string().max(800),
     saveableExpressions: z.array(z.object({ expression: z.string(), meaning: z.string() })).max(3),
@@ -87,23 +91,52 @@ StudioCard = z.object({
 
 Message ids returned by the model are checked against the actual transcript; unknown ids are dropped.
 
+`CategoryEnum`, `SubCategoryEnum` and the valid pairs all come from `src/lib/domain/taxonomy.ts`. Every schema
+with a category/subCategory pair uses `superRefine` to reject pairs that don't belong together, and the database
+enforces the same pairs with a composite FK to `gap_taxonomy`. "Naturalness" is only a score dimension:
+`pragmatics`, `natural_expression` and `register` roll up to it, `grammar` → grammar, `vocabulary` → vocabulary
+(`SCORE_DIMENSION_BY_CATEGORY` in taxonomy.ts).
+
 ## Gap detection (deterministic, src/lib/domain/gaps.ts)
 
-1. Discard events with `confidence < 0.6`.
-2. Upsert gap by `(user_id, category, sub_category)`; link events; increment `evidence_count`,
-   `conversations_count` (distinct), update `last_detected_at`.
-3. A gap becomes visible (`active`) once `evidence_count ≥ 2` or one event with confidence ≥ 0.85.
-4. Severity from evidence in the last 14 days: 2–3 → low, 4–6 → medium, ≥ 7 or recurring in ≥ 3
-   conversations → high.
-5. `good_usage` events or 3 practice conversations targeting the gap without new negative evidence
-   → `improving`; 30 days without negative evidence after improving → `resolved`. Users can dismiss.
+Gaps are a recomputable cache of `language_events`. Recompute a gap from all of its events, never increment,
+so re-applying a review gives the same result.
+
+1. Persist every valid event (any confidence). Only events with `confidence ≥ 0.6` count as evidence;
+   `good_usage` events are positive evidence, all other types are negative.
+2. Find or create the gap for `(user_id, category, sub_category)` and link the event (`gap_id`).
+3. Recompute from linked events: `evidence_count` (negative, ≥ 0.6), `conversations_count` (distinct
+   conversations among them), `first/last_detected_at`, `confidence` = max confidence.
+4. **Status**
+   - `emerging`: stored but **not shown** in Gap Tracker or used for recommendations. This is the state of
+     every new gap until it reaches the threshold.
+   - `emerging → active` when `evidence_count ≥ 2`, or a single negative event has `confidence ≥ 0.85`.
+   - `active → improving` when, since the last negative event, there are ≥ 2 `good_usage` events or 3 completed
+     conversations that targeted the gap.
+   - `improving → active` on any new negative evidence.
+   - `improving → resolved` after 30 days without negative evidence.
+   - `resolved → active` on new negative evidence (the gap reopens; history is kept).
+   - `dismissed` is user-set and sticky: new events still attach but never change status.
+5. **Severity** (computed for every non-dismissed gap from negative evidence in the last 14 days):
+   - `high`: ≥ 7 events, or present in ≥ 3 distinct conversations
+   - `medium`: 4–6 events
+   - `low`: 1–3 events. This includes a gap activated by **one** high-confidence event: it starts as `low`
+     and goes up only as more evidence arrives.
+   - No evidence in the window: severity stays at its last value; the recency term in recommendations
+     lowers its priority.
+
+Rules are pure functions over an event list, so they are unit-tested without a database.
 
 ## Learning items & review (src/lib/domain/scheduling.ts)
 
 - SM-2 lite: ratings again/hard/good/easy update `ease`, `interval_days`, `next_review_at`, `mastery_score`.
-- Using an item naturally in a conversation (reviewer `targetItemsUsed`) counts as a strong "good"
-  review and increments `times_used_in_conversation` — this is the Reuse step.
-- Starting a scenario picks up to 3 due/low-mastery items relevant to the scenario as targets.
+- Using a target item naturally in a conversation (reviewer `targetItemsUsed`) sets
+  `conversation_targets.used_naturally = true` and writes one `review_logs` row with `mode = conversation`.
+  This is the Reuse step. The partial unique index `(conversation_id, item_id)` means a conversation can move an
+  item's schedule at most once. Times used is `count(conversation_targets where used_naturally)`, never a stored
+  counter.
+- Starting a scenario picks up to 3 due/low-mastery items relevant to the scenario and inserts them as
+  `conversation_targets`.
 
 ## Recommendations (src/lib/domain/recommendations.ts)
 

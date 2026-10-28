@@ -12,7 +12,7 @@ Next.js App Router (Vercel)
    │
    ├─ src/lib/ai ───────── provider abstraction + services (tutor, reviewer, gap extractor, studio, debrief)
    ├─ src/lib/domain ───── deterministic logic (gap aggregation, scheduling, recommendations)
-   └─ src/lib/supabase ─── browser / server / middleware / admin clients
+   └─ src/lib/supabase ─── env / browser / server / proxy / admin clients
    │
 ┌──────────────────────┬──────────────────────┐
 │ Supabase             │ LLM provider         │
@@ -65,8 +65,19 @@ Key decisions:
 /api/conversations/[id]/messages   POST, streams tutor reply
 ```
 
-`middleware.ts` refreshes the Supabase session, redirects unauthenticated users from `(app)` to `/login`,
-and redirects users without `profiles.onboarded_at` to `/onboarding`.
+`src/proxy.ts` (Next.js 16 renamed `middleware` to `proxy`) refreshes the Supabase session cookie and does
+an *optimistic* redirect of signed-out users from `(app)` to `/login` (M2). Real authorization happens close to
+the data: in the data access layer, in each Server Action and Route Handler, and in RLS. The onboarding redirect
+is done in the app layout's data access layer, not in the proxy (the proxy must not do slow DB reads).
+
+**Unconfigured mode (M1).** If `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` are missing,
+the app still starts. The proxy is a pass-through, pages render the shell, and a banner explains that Supabase
+is not configured and points to `.env.example`. Supabase clients are created lazily through
+`getSupabaseEnv()`, which returns `null` instead of throwing.
+
+**Next.js 16 specifics.** `cacheComponents` is on. Anything that reads the request (cookies, session) sits
+behind `<Suspense>`; shared chrome (sidebar) is static and prerenders into the shell. Turbopack is the default
+bundler. `next lint` no longer exists, so lint runs ESLint flat config directly.
 
 ## Folder structure
 
@@ -86,7 +97,7 @@ src/
     today/ studio/ simulator/ review/ gaps/ items/ debrief/ charts/
     shared/                     EmptyState, ErrorState, ScoreRing, Skeletons
   lib/
-    supabase/ client.ts server.ts middleware.ts admin.ts types.ts (generated)
+    supabase/ env.ts client.ts server.ts proxy.ts admin.ts types.ts
     ai/
       provider.ts               LLMProvider interface + factory (env AI_PROVIDER)
       providers/anthropic.ts openai.ts mock.ts
@@ -101,7 +112,7 @@ src/
     actions/                    server actions grouped by feature
     validation/                 zod input schemas
     utils/
-  middleware.ts
+  proxy.ts                      Next 16 proxy (formerly middleware)
 supabase/
   migrations/
   seed.sql                      scenarios + curated expressions
@@ -121,16 +132,37 @@ docs/
 
 ## Conversation state
 
-`conversations.status`: `active → reviewing → completed` (or `abandoned`, or `failed_review`).
+`conversations.status`: `active → reviewing → completed`, or `reviewing → failed_review → reviewing` (retry),
+or `active → abandoned`.
 
-1. Start: server action creates `conversations` row with a snapshot of the scenario + target items
-   (saved expressions/gaps chosen for reuse), inserts the AI's opening line, redirects to chat.
-2. Turn: route handler validates input (≤ 1000 chars), checks ownership + `status = active`, enforces turn
+1. Start: server action creates the `conversations` row with a scenario snapshot, inserts
+   `conversation_targets` (saved items / gaps chosen for reuse), inserts the AI's opening line, redirects to chat.
+2. Turn: route handler validates input (≤ 1000 chars), checks ownership + `status = active`, enforces the turn
    cap (default 30 user turns), loads history, calls `tutor.reply` (streaming), persists both messages.
-3. End: server action sets `reviewing`, runs reviewer + gap extractor, writes feedback, corrections,
-   language events, updates gaps and item usage, sets `completed`. On failure → `failed_review` with a
-   "Retry review" button (idempotent: deletes partial review rows first).
+3. End: server action moves `active|failed_review → reviewing` with a conditional update (claims the review;
+   if 0 rows change, another request already owns it), runs reviewer + extractor **outside** any transaction,
+   validates with Zod, then calls `apply_conversation_review` once.
 4. Reload-safe: state lives in the DB, not in client memory.
+
+### Review idempotency (schema in M1, implemented in M7/M8)
+
+Retries and double clicks must never double-count gap evidence, item usage or review progress. The plan
+uses four layers:
+
+1. **Single writer.** All review results are written by one `security definer` RPC,
+   `apply_conversation_review(conversation_id, review, events)`, in one transaction. It locks the conversation
+   row (`for update`), checks `user_id = auth.uid()` and `status = 'reviewing'`, and returns early (no-op) if it is
+   already `completed`. A failure rolls everything back, so there are never partial rows to clean up.
+2. **Natural unique keys.** `conversation_feedback (conversation_id)`, `corrections (conversation_id, position)`,
+   `language_events (conversation_id, message_id, event_type, category, sub_category)`,
+   `review_logs (conversation_id, item_id)`. Writes use `on conflict do nothing/update`, so replaying the same
+   payload is harmless.
+3. **Recompute, don't increment.** After inserting events, the RPC recomputes each touched gap from all of its
+   linked events (DATABASE.md rule 2). Item "times used" is a count over `conversation_targets`; the item's SRS
+   state moves only when a new `review_logs` row is actually inserted for `(conversation_id, item_id)`.
+4. **Retry after a failure starts clean by construction.** A failed attempt committed nothing (layer 1). A retry
+   after a successful commit is a no-op (status `completed`). `review_attempts` and `review_error` record history
+   for debugging. A stale `reviewing` older than 5 minutes can be reclaimed.
 
 ## Error and loading states
 
@@ -139,12 +171,13 @@ docs/
   friendly messages. Structured outputs: Zod parse → one repair retry → fail.
 - Review progress UI: "Reading your conversation → Finding natural alternatives → Updating your profile".
 - Empty states with a clear next step (e.g. no gaps yet → "Finish a conversation to see your gaps").
-- Rate limiting: per-user daily caps on AI calls stored in `ai_usage` (prevents bill shock on the demo).
+- Rate limiting: per-user daily caps on AI calls via the atomic `consume_ai_quota()` RPC (DATABASE.md).
 
 ## Security
 
-- RLS on all user tables; scenarios/curated content readable by authenticated users, writable only via
-  migrations/seed.
+- RLS on all tables plus same-owner composite foreign keys, so a row can't be linked to another user's data
+  (DATABASE.md → Design rules). Shared scenarios/curated content are read-only for users; users fully manage
+  their own custom scenarios. AI-derived tables are written only by `auth.uid()`-checking RPCs.
 - Keys server-only (`server-only` package); `NEXT_PUBLIC_` only for Supabase URL + anon key.
 - Zod validation on all action/route inputs, length caps on free text.
 - Prompt injection: user text is placed in delimited user turns, never in system prompts; outputs are
@@ -155,18 +188,22 @@ docs/
 
 ## Environment variables
 
+See `.env.example` (source of truth). Summary:
+
 ```
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=        # seeding only, server-only
-AI_PROVIDER=anthropic             # anthropic | openai | mock
-ANTHROPIC_API_KEY=
-ANTHROPIC_MODEL_CHAT=claude-sonnet-5-5
-ANTHROPIC_MODEL_ANALYSIS=claude-opus-5-5
-OPENAI_API_KEY=                   # optional
-AI_DAILY_LIMIT=200                # AI calls per user per day
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
+NEXT_PUBLIC_SUPABASE_URL=          # empty → unconfigured mode
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=         # server-only; seeding/admin scripts only, never needed by the app at runtime
+AI_PROVIDER=mock                   # mock | anthropic | openai (real providers wired in M6)
+AI_MODEL_CHAT=                     # set in M6 after checking the provider's current model list
+AI_MODEL_ANALYSIS=
+ANTHROPIC_API_KEY=
+OPENAI_API_KEY=
 ```
+
+The per-user daily AI limit lives in the database (`app_config.ai_daily_limit`), not in an env var, so the
+quota RPC cannot be influenced by the caller.
 
 ## Testing strategy
 

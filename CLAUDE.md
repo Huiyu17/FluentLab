@@ -20,6 +20,13 @@ Read before working on a milestone:
 Next.js (App Router) · TypeScript (strict) · Tailwind CSS · shadcn/ui · Supabase (Postgres + Auth)
 · Zod · Recharts · Vitest · Playwright · Vercel. No separate Python backend in V1.
 
+## Next.js 16 notes (see AGENTS.md)
+
+This is Next.js 16 with `cacheComponents` enabled. APIs differ from older versions: read the relevant
+guide in `node_modules/next/dist/docs/` before using a Next API. Key differences: `middleware.ts` is now
+`src/proxy.ts`; request APIs (`cookies()`, `params`) are async; request reads must sit behind `<Suspense>`;
+`next lint` is gone (we run `eslint` directly).
+
 ## Engineering rules
 
 - TypeScript strict. No `any` unless justified in a comment.
@@ -34,6 +41,11 @@ Next.js (App Router) · TypeScript (strict) · Tailwind CSS · shadcn/ui · Supa
 - During simulator conversations the AI stays in character and does NOT correct the learner.
 - Validate all user input with Zod at the action/route boundary (length limits included).
 - Schema changes only via new files in `supabase/migrations/`; never edit an applied migration.
+- User-owned rows reference parents with same-owner composite FKs `(parent_id, user_id)`; aggregates are
+  recomputed from ledgers, never incremented (docs/DATABASE.md → Design rules).
+- Gap/correction categories come only from `src/lib/domain/taxonomy.ts` (mirrors `gap_taxonomy` table).
+- The app must run without Supabase or AI keys (unconfigured mode + `AI_PROVIDER=mock`).
+- Pin exact dependency versions (`npm install --save-exact`).
 - Keep scope to the current milestone. Do not build V2/V3 features (voice, pronunciation, etc.).
 
 ## UI rules
@@ -49,10 +61,12 @@ Next.js (App Router) · TypeScript (strict) · Tailwind CSS · shadcn/ui · Supa
 npm run dev         # local dev
 npm run lint        # ESLint
 npm run typecheck   # tsc --noEmit
-npm test            # Vitest unit tests
+npm test            # Vitest unit tests (+ migration smoke test on PGlite)
 npm run test:e2e    # Playwright
 npm run build       # production build
-npx supabase db push / supabase migration new <name>
+npm run format      # Prettier
 ```
+
+Supabase CLI (`supabase start`, `supabase db reset`) needs Docker and is not set up yet; see docs/TASKS.md.
 
 Before finishing any milestone: lint, typecheck, test, build must all pass.
