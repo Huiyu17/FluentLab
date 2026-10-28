@@ -50,6 +50,9 @@ supabase/.env
 # typescript
 *.tsbuildinfo
 
+# claude code local settings
+.claude/settings.local.json
+
 # editors
 .vscode/*
 !.vscode/extensions.json
