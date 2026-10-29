@@ -1,55 +1,13 @@
-import { randomBytes } from "node:crypto";
-import { expect, test, type Page } from "@playwright/test";
-import { createClient } from "@supabase/supabase-js";
+import { expect, test } from "@playwright/test";
+import { admin, signIn, useLiveUser } from "./helpers";
 
 // M4 flows against the real Supabase project, as a throwaway onboarded user who is deleted
 // afterwards (with all their rows). Run with `npm run test:e2e:live`.
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-
-test.skip(
-  !url || !serviceRoleKey,
-  "Needs NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env.local",
-);
-
-const admin =
-  url && serviceRoleKey ? createClient(url, serviceRoleKey, { auth: { persistSession: false } }) : null;
-const email = `e2e-live-${randomBytes(6).toString("hex")}@example.com`;
-const password = randomBytes(18).toString("base64url");
-let userId: string | null = null;
-
-test.beforeAll(async () => {
-  const created = await admin!.auth.admin.createUser({ email, password, email_confirm: true });
-  if (created.error) throw new Error(`createUser: ${created.error.message}`);
-  userId = created.data.user.id;
-  const { error } = await admin!
-    .from("profiles")
-    .update({
-      display_name: "E2E",
-      english_level: "upper_intermediate",
-      contexts: ["campus"],
-      timezone: "America/New_York",
-      onboarded_at: new Date().toISOString(),
-    })
-    .eq("id", userId);
-  if (error) throw new Error(`onboard: ${error.message}`);
-});
-
-test.afterAll(async () => {
-  if (userId) await admin!.auth.admin.deleteUser(userId);
-});
-
-async function signIn(page: Page) {
-  await page.goto("/login");
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(password);
-  await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page).toHaveURL(/\/today$/);
-}
+const liveUser = useLiveUser();
 
 test("a saved card that is deleted elsewhere shows 'Add' again on return", async ({ page }) => {
-  await signIn(page);
+  await signIn(page, liveUser());
   await page.goto("/vocabulary");
   await page.getByLabel("Look up a word").fill("tentative");
   await page.getByRole("button", { name: "Explain" }).click();
@@ -72,7 +30,7 @@ test("a saved card that is deleted elsewhere shows 'Add' again on return", async
 });
 
 test("a curated expression can be added, reviewed and is then no longer due", async ({ page }) => {
-  await signIn(page);
+  await signIn(page, liveUser());
   await page.goto("/expressions");
   await page.getByRole("button", { name: "Add: Something came up." }).click();
   await expect(page.getByRole("link", { name: "In My English: Something came up." })).toBeVisible();
@@ -89,7 +47,7 @@ test("a curated expression can be added, reviewed and is then no longer due", as
   await expect(page.getByRole("heading", { name: "Review done" })).toBeVisible();
 
   // The database moved the schedule: one review log with the sentence mode, next review in a day.
-  const { data: logs } = await admin!.from("review_logs").select("rating, mode").eq("user_id", userId!);
+  const { data: logs } = await admin!.from("review_logs").select("rating, mode").eq("user_id", liveUser().id);
   expect(logs).toEqual([{ rating: "good", mode: "use_in_sentence" }]);
 
   // A fresh visit starts a new session instead of showing the old "done" screen.

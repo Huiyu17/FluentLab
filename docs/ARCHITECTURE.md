@@ -52,6 +52,8 @@ Key decisions:
 /simulator                scenario catalog by category
 /simulator/[scenarioSlug] scenario brief → Start
 /simulator/custom         create custom scenario
+/simulator/custom/[id]    custom scenario brief (owner only; custom scenarios have no slug) → Edit / Delete
+/simulator/custom/[id]/edit  edit custom scenario
 /conversations            history
 /conversations/[id]       live chat (if active) or transcript
 /conversations/[id]/review  Conversation Review
@@ -116,9 +118,12 @@ src/
       scheduling.ts             spaced repetition (SM-2 lite)
       recommendations.ts        Today plan (M3: rule-based; M8: severity × recency ranking)
       streak.ts                 practice streak + last 7 days, in the learner's time zone
+      targets.ts                which saved items a conversation targets (due first, then least mastered)
       taxonomy.ts               gap category/subcategory constants
     data/today.ts               server-only reads for the Today page (parallel queries under RLS)
     data/items.ts               saved items, item detail, curated list, due items for review
+    data/scenarios.ts           shared catalog + own custom scenarios (never selects system_prompt)
+    scenarios.ts                scenario hrefs, category labels, catalog grouping
     items.ts                    item types, hrefs, register labels, My English URL filters
     dates.ts                    greeting / relative day formatting in the learner's time zone
     actions/                    server actions grouped by feature

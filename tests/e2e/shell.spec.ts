@@ -40,6 +40,20 @@ test.describe("app shell (unconfigured mode)", () => {
     await expect(page.getByRole("heading", { name: "My English needs an account" })).toBeVisible();
   });
 
+  test("Simulator explains that scenarios need an account and offers to create one", async ({ page }) => {
+    await page.goto("/simulator");
+    await expect(page.getByRole("heading", { name: "Scenarios need an account" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Create your own" })).toHaveAttribute(
+      "href",
+      "/simulator/custom",
+    );
+  });
+
+  test("a scenario brief explains that it needs an account", async ({ page }) => {
+    await page.goto("/simulator/office-hours");
+    await expect(page.getByRole("heading", { name: "Scenarios need an account" })).toBeVisible();
+  });
+
   test("sidebar navigates between sections and marks the current page", async ({ page, isMobile }) => {
     test.skip(isMobile, "desktop sidebar");
     await page.goto("/today");

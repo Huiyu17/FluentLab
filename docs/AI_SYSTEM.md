@@ -142,8 +142,10 @@ Rules are pure functions over an event list, so they are unit-tested without a d
   This is the Reuse step. The partial unique index `(conversation_id, item_id)` means a conversation can move an
   item's schedule at most once. Times used is `count(conversation_targets where used_naturally)`, never a stored
   counter.
-- Starting a scenario picks up to 3 due/low-mastery items relevant to the scenario and inserts them as
-  `conversation_targets`.
+- Starting a scenario picks up to 3 items and inserts them as `conversation_targets`
+  (`src/lib/domain/targets.ts`): due items first (longest overdue first), then the least mastered, skipping
+  well-known items (mastery ≥ 0.8) unless due. Saved items have no scenario tags yet, so "relevant to the
+  scenario" is approximated by "most in need of practice"; the scenario brief shows the same picks (M5).
 
 ## Recommendations (src/lib/domain/recommendations.ts)
 

@@ -201,6 +201,34 @@ async function run(a: User, b: User) {
 
     const seen = await b.client.from("scenarios").select("id").eq("id", scenarioId);
     check("B cannot see A's custom scenario", seen.data?.length === 0, seen);
+    const renamed = await b.client
+      .from("scenarios")
+      .update({ title: "taken" })
+      .eq("id", scenarioId)
+      .select("id");
+    check(
+      "B cannot edit A's custom scenario (0 rows)",
+      !renamed.error && renamed.data?.length === 0,
+      renamed,
+    );
+    const removed = await b.client.from("scenarios").delete().eq("id", scenarioId).select("id");
+    check(
+      "B cannot delete A's custom scenario (0 rows)",
+      !removed.error && removed.data?.length === 0,
+      removed,
+    );
+    const kept = await a.client.from("scenarios").select("title").eq("id", scenarioId).single();
+    check("A's custom scenario is intact", kept.data?.title === "My lab meeting", kept);
+    const sharedEdit = await a.client
+      .from("scenarios")
+      .update({ title: "hijacked" })
+      .eq("slug", "office-hours")
+      .select("id");
+    check(
+      "A cannot edit a shared scenario (0 rows)",
+      !sharedEdit.error && sharedEdit.data?.length === 0,
+      sharedEdit,
+    );
 
     const forged = await a.client.from("scenarios").insert({
       category: "custom",

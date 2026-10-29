@@ -1,16 +1,19 @@
 import type { Metadata } from "next";
-import { PlaceholderPage } from "@/components/shared/placeholder-page";
+import { Suspense } from "react";
+import { PageSkeleton } from "@/components/shared/skeletons";
+import { BriefPage } from "@/components/simulator/brief-page";
 
 export const metadata: Metadata = { title: "Scenario" };
 
-// Reads params.scenarioSlug once implemented (M5).
-export default function ScenarioPage() {
+async function Content({ params }: { params: PageProps<"/simulator/[scenarioSlug]">["params"] }) {
+  const { scenarioSlug } = await params;
+  return <BriefPage source={{ kind: "shared", slug: scenarioSlug }} />;
+}
+
+export default function ScenarioPage({ params }: PageProps<"/simulator/[scenarioSlug]">) {
   return (
-    <PlaceholderPage
-      title="Scenario"
-      description="Read the brief, then start the conversation."
-      milestone="M5"
-      comingNext="The scenario brief, difficulty, goal and Start button will appear here."
-    />
+    <Suspense fallback={<PageSkeleton />}>
+      <Content params={params} />
+    </Suspense>
   );
 }

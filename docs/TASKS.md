@@ -83,7 +83,18 @@ migration that touches RLS or grants, apply it to the Supabase project and rerun
 - [x] `npm run test:e2e:live`: real-Supabase E2E as a throwaway user (save → delete → "Add" again; curated →
       review → not due). Manually checked by the learner on 2026-10-29
 
-## M5 — Scenario catalog + scenario brief + custom scenario
+## M5 — Scenario catalog + scenario brief + custom scenario ✅
+- [x] `CustomScenarioSchema` (limits checked against the migration SQL), `data/scenarios.ts`
+      (`system_prompt` never selected; custom scenarios scoped to their owner)
+- [x] `/simulator` catalog: recommended from the learner's contexts, other categories, "Your scenarios"
+- [x] Scenario brief for shared (`/simulator/[slug]`) and custom (`/simulator/custom/[id]`) scenarios, with
+      "Expressions you could use" from `domain/targets.ts`. Start stays disabled until M6 (no half-usable
+      conversation rows)
+- [x] Custom scenarios: create, edit, delete (ownership set server-side, 50 per account, inline delete confirm)
+- [x] `db:verify-rls` 36/36 (B can't edit/delete A's custom scenario, A can't edit a shared one);
+      `test:e2e:live` 4/4 (scenario lifecycle + not-found). Manually checked by the learner on 2026-10-29
+- Note: not-found inside a streamed (Suspense) page renders the not-found UI with HTTP 200 + noindex,
+  because the status is sent before `notFound()` runs. Fine for signed-in pages.
 
 ## M6 — AI conversation system (choose provider + verify model ids, provider abstraction, tutor, streaming chat, conversation state)
 - [ ] Verify `consume_ai_quota()` under concurrent requests on the Supabase project (carried over from M2)
