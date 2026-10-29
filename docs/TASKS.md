@@ -58,7 +58,16 @@ migration that touches RLS or grants, apply it to the Supabase project and rerun
       server, browser and admin clients are typed with `Database`
 - [x] RLS verified on the real project with two users (`npm run db:verify-rls`)
 
-## M3 — Today dashboard (static data sources wired, recommendations stubbed)
+## M3 — Today dashboard (static data sources wired, recommendations stubbed) ✅
+- [x] Domain: `streak.ts` (learner's time zone; a missed today doesn't break it, a missed yesterday does)
+      and rule-based `recommendations.ts` (conversation from the learner's contexts or for the top gap,
+      review when items are due, one Studio suggestion; each with a reason). Full ranking formula → M8.
+- [x] `src/lib/data/today.ts`: 10 parallel queries under RLS; only `active`/`improving` gaps are shown;
+      streak looks back 90 days. Select strings checked against the real schema.
+- [x] Today UI: plan, streak, reviews, focus areas, recent activity, indicators (captioned
+      "AI-estimated learning indicators"); loading skeleton, per-card empty states, error boundary,
+      unconfigured notice
+- [x] `npm run db:seed-demo`: demo account for a populated dashboard (manually checked on 2026-10-29)
 
 ## M4 — Vocabulary / Expression Studio + My English + review session (`record_item_review` RPC)
 

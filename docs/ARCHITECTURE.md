@@ -111,8 +111,11 @@ src/
     domain/
       gaps.ts                   event → gap aggregation, severity, status transitions
       scheduling.ts             spaced repetition (SM-2 lite)
-      recommendations.ts        Today plan ranking
+      recommendations.ts        Today plan (M3: rule-based; M8: severity × recency ranking)
+      streak.ts                 practice streak + last 7 days, in the learner's time zone
       taxonomy.ts               gap category/subcategory constants
+    data/today.ts               server-only reads for the Today page (parallel queries under RLS)
+    dates.ts                    greeting / relative day formatting in the learner's time zone
     actions/                    server actions grouped by feature
     validation/                 zod input schemas
     utils/
@@ -123,6 +126,8 @@ supabase/
 scripts/
   verify-rls.ts                 `npm run db:verify-rls`: RLS/grant/FK checks on the real project
                                 as two throwaway users (needs the service-role key; deletes them after)
+  seed-demo.ts                  `npm run db:seed-demo [-- --delete]`: demo account with practice history
+                                (gap aggregates match their events); rerun to refresh
 tests/
   unit/  e2e/  fixtures/        (AI fixture transcripts + expected outputs)
 docs/

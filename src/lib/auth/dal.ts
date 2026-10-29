@@ -25,7 +25,7 @@ export type AuthState =
 const PROFILE_COLUMNS =
   "id, display_name, native_language, english_level, learning_goal, contexts, daily_goal_minutes, timezone, onboarded_at";
 
-// Until src/lib/supabase/types.ts is generated, validate the row shape at runtime.
+// The generated types say `string` for check-constrained columns; narrow them at runtime.
 const ProfileRowSchema = z.object({
   id: z.uuid(),
   display_name: z.string().nullable(),

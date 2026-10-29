@@ -13,6 +13,12 @@ test.describe("app shell (unconfigured mode)", () => {
     await expect(page.getByRole("status").filter({ hasText: "Supabase is not configured" })).toBeVisible();
   });
 
+  test("Today explains that the daily plan needs an account", async ({ page }) => {
+    await page.goto("/today");
+    await expect(page.getByRole("heading", { level: 1, name: "Today" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Your daily plan needs an account" })).toBeVisible();
+  });
+
   test("sidebar navigates between sections and marks the current page", async ({ page, isMobile }) => {
     test.skip(isMobile, "desktop sidebar");
     await page.goto("/today");
