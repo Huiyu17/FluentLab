@@ -16,8 +16,15 @@ vi.mock("next/navigation", () => ({
 const createClient = vi.fn();
 vi.mock("@/lib/supabase/server", () => ({ createClient: () => createClient() }));
 
-const { getAuthState, getCurrentProfile, getCurrentUser, requireOnboardedUser, requireUser } =
-  await import("@/lib/auth/dal");
+const {
+  getAuthState,
+  getCurrentProfile,
+  getCurrentUser,
+  requireAppAccess,
+  requireOnboardedUser,
+  requireOnboardingPending,
+  requireUser,
+} = await import("@/lib/auth/dal");
 
 const USER_ID = "8f6d2c1e-4b3a-4f5e-9a7b-1c2d3e4f5a6b";
 
@@ -193,5 +200,52 @@ describe("requireOnboardedUser", () => {
     createClient.mockResolvedValue(fake.client);
     expect(await redirectTarget(requireOnboardedUser())).toBe("/login");
     expect(fake.from).not.toHaveBeenCalled();
+  });
+});
+
+describe("requireAppAccess (app layout gate)", () => {
+  it("lets the shell render in unconfigured mode", async () => {
+    createClient.mockResolvedValue(null);
+    await expect(requireAppAccess()).resolves.toBeUndefined();
+  });
+
+  it("allows onboarded users", async () => {
+    createClient.mockResolvedValue(fakeSupabase({ claims: { sub: USER_ID }, profile: profileRow }).client);
+    await expect(requireAppAccess()).resolves.toBeUndefined();
+  });
+
+  it("redirects signed-out users to /login and new users to /onboarding", async () => {
+    createClient.mockResolvedValue(fakeSupabase({}).client);
+    expect(await redirectTarget(requireAppAccess())).toBe("/login");
+    createClient.mockResolvedValue(
+      fakeSupabase({ claims: { sub: USER_ID }, profile: { ...profileRow, onboarded_at: null } }).client,
+    );
+    expect(await redirectTarget(requireAppAccess())).toBe("/onboarding");
+  });
+});
+
+describe("requireOnboardingPending (/onboarding gate)", () => {
+  it("returns null in unconfigured mode", async () => {
+    createClient.mockResolvedValue(null);
+    expect(await requireOnboardingPending()).toBeNull();
+  });
+
+  it("redirects signed-out users to /login and back to /onboarding", async () => {
+    createClient.mockResolvedValue(fakeSupabase({}).client);
+    expect(await redirectTarget(requireOnboardingPending())).toBe("/login?next=%2Fonboarding");
+  });
+
+  it("sends onboarded users to /today", async () => {
+    createClient.mockResolvedValue(fakeSupabase({ claims: { sub: USER_ID }, profile: profileRow }).client);
+    expect(await redirectTarget(requireOnboardingPending())).toBe("/today");
+  });
+
+  it("returns the user and profile while onboarding is pending", async () => {
+    createClient.mockResolvedValue(
+      fakeSupabase({ claims: { sub: USER_ID }, profile: { ...profileRow, onboarded_at: null } }).client,
+    );
+    const result = await requireOnboardingPending();
+    expect(result?.user.id).toBe(USER_ID);
+    expect(result?.profile?.onboardedAt).toBeNull();
   });
 });

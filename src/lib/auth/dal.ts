@@ -129,3 +129,30 @@ export async function requireOnboardedUser(next?: string): Promise<{ user: Curre
   if (!profile?.onboardedAt) redirect("/onboarding");
   return { user, profile };
 }
+
+/**
+ * Gate for the (app) layout. In unconfigured mode the shell stays explorable
+ * (see docs/ARCHITECTURE.md → Unconfigured mode); otherwise the user must be
+ * signed in and onboarded.
+ */
+export async function requireAppAccess(): Promise<void> {
+  const state = await getAuthState();
+  if (state.status === "unconfigured") return;
+  await requireOnboardedUser();
+}
+
+/**
+ * Gate for /onboarding: a signed-in user who has not finished onboarding.
+ * Onboarded users go to /today. Returns null in unconfigured mode.
+ */
+export async function requireOnboardingPending(): Promise<{
+  user: CurrentUser;
+  profile: Profile | null;
+} | null> {
+  const state = await getAuthState();
+  if (state.status === "unconfigured") return null;
+  const user = await requireUser("/onboarding");
+  const profile = await getCurrentProfile();
+  if (profile?.onboardedAt) redirect("/today");
+  return { user, profile };
+}

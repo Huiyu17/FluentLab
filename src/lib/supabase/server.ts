@@ -3,6 +3,7 @@ import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 import { getSupabaseEnv } from "./env";
 
 /**
@@ -14,6 +15,10 @@ export async function createClient(): Promise<SupabaseClient | null> {
   const env = getSupabaseEnv();
   if (!env) return null;
 
+  // Supabase compares token expiry with Date.now(). Cookies alone don't stop
+  // Cache Components from prerendering (dev's runtime prefetch check reads them),
+  // so mark everything that uses this client as request-time only.
+  await connection();
   const cookieStore = await cookies();
 
   return createServerClient(env.url, env.anonKey, {

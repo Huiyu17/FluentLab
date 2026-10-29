@@ -43,8 +43,11 @@ Before M2 ships, run the migrations on a Supabase project and repeat the RLS che
       password sign-in, wrong password, magic link for an unknown email, invalid link → `/login`.
       Not yet clicked: a magic link for an existing account. Unit tests cover the actions and callback.)
 - [x] Data access layer: `src/lib/auth/dal.ts` (`getCurrentUser`, `requireUser`, `requireOnboardedUser`)
-- [ ] Proxy redirect for signed-out users (and signed-in users away from /login, /signup), onboarding gate,
-      sign-out button
+- [x] Proxy redirect for signed-out users (and signed-in users away from /login, /signup), onboarding gate,
+      sign-out button (manually verified on the real project: /today → /onboarding while not onboarded,
+      /login → away when signed in, sign out → /login, signed out /today → /login?next=%2Ftoday → back
+      after sign-in. `createClient()` calls `connection()` so Supabase's `Date.now()` expiry checks
+      never run during prerendering.)
 - [ ] Onboarding wizard (native language, level, goal, contexts, daily minutes)
 - [ ] Settings page edits profile
 - [ ] Generate `src/lib/supabase/types.ts` from the schema

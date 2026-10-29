@@ -1,7 +1,7 @@
 "use client";
 
 import { Menu } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -14,7 +14,8 @@ import {
 import { Brand } from "./brand";
 import { SidebarNav } from "./sidebar-nav";
 
-export function MobileNav() {
+/** `account` is a server-rendered AccountMenu passed through from the layout. */
+export function MobileNav({ account }: { account?: ReactNode }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -34,6 +35,7 @@ export function MobileNav() {
           <SheetDescription className="sr-only">Main navigation</SheetDescription>
         </SheetHeader>
         <SidebarNav onNavigate={() => setOpen(false)} />
+        <div className="mt-auto pt-6">{account}</div>
       </SheetContent>
     </Sheet>
   );

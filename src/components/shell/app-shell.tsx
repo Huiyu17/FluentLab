@@ -9,7 +9,7 @@ function NavFallback() {
   return <div aria-hidden className="h-96" />;
 }
 
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({ children, account }: { children: ReactNode; account?: ReactNode }) {
   return (
     <div className="flex min-h-dvh">
       <a
@@ -24,12 +24,13 @@ export function AppShell({ children }: { children: ReactNode }) {
         <Suspense fallback={<NavFallback />}>
           <SidebarNav />
         </Suspense>
+        <div className="mt-auto">{account}</div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex items-center gap-2 border-b bg-background/95 px-4 py-3 lg:hidden">
           <Suspense fallback={<div className="size-9" />}>
-            <MobileNav />
+            <MobileNav account={account} />
           </Suspense>
           <Brand />
         </header>
