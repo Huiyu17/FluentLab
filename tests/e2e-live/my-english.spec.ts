@@ -1,10 +1,10 @@
 import { expect, test } from "@playwright/test";
-import { admin, signIn, useLiveUser } from "./helpers";
+import { admin, signIn, setupLiveUser } from "./helpers";
 
 // M4 flows against the real Supabase project, as a throwaway onboarded user who is deleted
 // afterwards (with all their rows). Run with `npm run test:e2e:live`.
 
-const liveUser = useLiveUser();
+const liveUser = setupLiveUser();
 
 test("a saved card that is deleted elsewhere shows 'Add' again on return", async ({ page }) => {
   await signIn(page, liveUser());

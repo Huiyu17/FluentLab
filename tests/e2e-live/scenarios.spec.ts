@@ -1,9 +1,9 @@
 import { expect, test } from "@playwright/test";
-import { admin, signIn, useLiveUser } from "./helpers";
+import { admin, signIn, setupLiveUser } from "./helpers";
 
 // M5 custom scenario lifecycle against the real Supabase project. Run with `npm run test:e2e:live`.
 
-const liveUser = useLiveUser();
+const liveUser = setupLiveUser();
 
 test("a custom scenario can be created, edited, found in the catalog and deleted", async ({ page }) => {
   await signIn(page, liveUser());

@@ -14,7 +14,7 @@ export const admin =
 export type LiveUser = { id: string; email: string; password: string };
 
 /** Call at the top of a spec file: skips without credentials, creates and deletes the user. */
-export function useLiveUser(): () => LiveUser {
+export function setupLiveUser(): () => LiveUser {
   test.skip(!admin, "Needs NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env.local");
   let user: LiveUser | null = null;
 
