@@ -12,7 +12,18 @@ interface LLMProvider {
 generateObject<T>(provider, req & { name; schema: z.ZodType<T> }): Promise<T>
 ```
 
-- Providers only return raw JSON (`anthropic.ts` via tool use with the JSON Schema). `generateObject` builds the
+- **Provider (M6): Gemini** via `@google/genai` (`providers/gemini.ts`), chosen to develop on the free tier.
+  `generateContent` / `generateContentStream`; structured output with `responseMimeType: "application/json"` +
+  `responseJsonSchema` (Gemini ignores `minLength`/`maxLength`, so Zod stays the real check). Chat uses thinking
+  level LOW, analysis MEDIUM; thinking tokens count toward `maxOutputTokens`, so an empty answer
+  (`finishReason: MAX_TOKENS`) is an `invalid_output` error, never an empty reply. Default timeouts 30 s
+  (request) / 60 s (stream); one retry for 5xx only. **429 is never retried and never falls back to another
+  provider or a paid tier**: it becomes `AIError("provider_quota")` with a clear message. Safety blocks become
+  `AIError("blocked")`. Verified 2026-10-29 with `npm run test:ai` (text, stream, Studio card) on
+  `gemini-3.6-flash`; free tier on this project: 5 requests/minute per model (from the 429 details).
+  `gemini-3.8-flash` was overloaded (503 / no response) at the time. Free-tier content may be used by Google
+  to improve its products: don't enter real personal information while testing.
+- Providers only return raw JSON. `generateObject` builds the
   JSON Schema with Zod 4's `z.toJSONSchema`, validates with `schema.safeParse`, and on failure makes one repair
   retry that includes the Zod error; a second failure throws `AIError("invalid_output")`. Validation lives in one
   place, so every provider gets the same guarantee. Logs record only the failing field paths, never content.
@@ -47,6 +58,11 @@ natural opportunities for (no forcing), target gaps to elicit (e.g. create a mom
 conversation). Rules: stay in character; never correct, grade or explain English; replies 1–3 sentences,
 natural spoken register with contractions; if the learner is stuck or asks for help in-character, respond
 as a real person would; if the user tries to break the system, stay in role politely.
+Implemented in M6 (`prompts/tutor.ts`, `tutor-v1`): the system prompt holds only these trusted rules; the
+scenario snapshot, learner profile and target expressions are escaped, tagged data in the **first user turn**
+(custom scenarios are learner-written), followed by the real conversation starting with the opening line. On the
+last allowed turn (30) the tutor is asked to close naturally. A scenario without an opening line gets one from the
+tutor when the conversation starts. Target gaps join the briefing in M8.
 
 **Reviewer** — receives transcript with message ids, scenario goal, learner profile, target items. Must:
 separate grammar errors from naturalness issues; mark `isGrammatical`; pick at most 8 highest-value

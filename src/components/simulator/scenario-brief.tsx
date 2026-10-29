@@ -1,13 +1,12 @@
 import { ArrowLeft, Clock, MessageCircle, Target, User, Users } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import type { SavedItem } from "@/lib/data/items";
 import type { Scenario } from "@/lib/data/scenarios";
 import { itemHref } from "@/lib/items";
 import { SCENARIO_CATEGORY_LABELS } from "@/lib/scenarios";
 import { ENGLISH_LEVEL_LABELS } from "@/lib/validation/profile";
+import { StartConversationButton } from "./start-conversation-button";
 
 function Block({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
   return (
@@ -133,16 +132,8 @@ export function ScenarioBrief({
           Stay in the moment: there are no corrections during the conversation. You get a full review when you
           finish.
         </p>
-        <div className="flex shrink-0 items-center gap-3">
-          <Badge variant="outline" className="rounded-full bg-card">
-            Coming in M6
-          </Badge>
-          <Button disabled aria-describedby="start-note">
-            Start conversation
-          </Button>
-          <span id="start-note" className="sr-only">
-            Starting conversations is coming in the next update.
-          </span>
+        <div className="shrink-0">
+          <StartConversationButton slug={scenario.isCustom ? null : scenario.slug} scenarioId={scenario.id} />
         </div>
       </div>
     </div>

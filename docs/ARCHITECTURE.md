@@ -64,7 +64,9 @@ Key decisions:
 /profile                  Fluency Profile (indicator trends)
 /settings                 profile, goals, native language, account
 
-/api/conversations/[id]/messages   POST, streams tutor reply
+/api/conversations/[id]/messages   POST, streams tutor reply as NDJSON events (src/lib/chat-protocol.ts):
+                                   accepted → delta… → done | error. No `content` = retry the reply to the
+                                   learner's unanswered last message. Errors before streaming: JSON + HTTP status.
 ```
 
 `src/proxy.ts` (Next.js 16 renamed `middleware` to `proxy`) refreshes the Supabase session cookie and does
@@ -108,7 +110,7 @@ src/
       provider.ts               LLMProvider interface + factory (env AI_PROVIDER; real providers in M6)
       structured.ts             generateObject: Zod validation, one repair retry, typed AIError
       errors.ts quota.ts        AIError + friendly messages; consume_ai_quota() wrapper
-      providers/anthropic.ts openai.ts mock.ts
+      providers/gemini.ts mock.ts  Gemini (@google/genai) and the deterministic mock
       fixtures/                 deterministic mock outputs (studio.ts)
       prompts/                  tutor.ts reviewer.ts extractor.ts studio.ts debrief.ts
       schemas/                  zod schemas for every structured output
@@ -123,6 +125,9 @@ src/
     data/today.ts               server-only reads for the Today page (parallel queries under RLS)
     data/items.ts               saved items, item detail, curated list, due items for review
     data/scenarios.ts           shared catalog + own custom scenarios (never selects system_prompt)
+    data/conversations.ts       one conversation with messages (by seq) and target expressions
+    chat-protocol.ts            NDJSON chat events shared by the route handler and ChatPanel
+    domain/conversation.ts      scenario snapshot, message/turn limits, speaker names
     scenarios.ts                scenario hrefs, category labels, catalog grouping
     items.ts                    item types, hrefs, register labels, My English URL filters
     dates.ts                    greeting / relative day formatting in the learner's time zone
@@ -138,6 +143,8 @@ scripts/
                                 as two throwaway users (needs the service-role key; deletes them after)
   seed-demo.ts                  `npm run db:seed-demo [-- --delete]`: demo account with practice history
                                 (gap aggregates match their events); rerun to refresh
+  verify-quota.ts               `npm run db:verify-quota`: limit + 10 concurrent consume_ai_quota() calls as a
+                                throwaway user; exactly `limit` must be allowed
 tests/
   unit/  e2e/  fixtures/        (AI fixture transcripts + expected outputs)
   e2e-live/                     `npm run test:e2e:live` (playwright.live.config.ts): real Supabase project,
@@ -219,11 +226,10 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000
 NEXT_PUBLIC_SUPABASE_URL=          # empty → unconfigured mode
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=         # server-only; seeding/admin scripts only, never needed by the app at runtime
-AI_PROVIDER=mock                   # mock | anthropic | openai (real providers wired in M6)
-AI_MODEL_CHAT=                     # set in M6 after checking the provider's current model list
+AI_PROVIDER=mock                   # mock (default) | gemini
+AI_MODEL_CHAT=                     # e.g. gemini-3.6-flash (free tier); required for a real provider
 AI_MODEL_ANALYSIS=
-ANTHROPIC_API_KEY=
-OPENAI_API_KEY=
+GEMINI_API_KEY=                    # server-only; Google AI Studio, billing off = free tier
 ```
 
 The per-user daily AI limit lives in the database (`app_config.ai_daily_limit`), not in an env var, so the

@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
-import { ScenarioBrief } from "@/components/simulator/scenario-brief";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SavedItem } from "@/lib/data/items";
 import type { Scenario } from "@/lib/data/scenarios";
+
+vi.mock("@/lib/actions/conversation", () => ({ startConversationAction: vi.fn() }));
+const { ScenarioBrief } = await import("@/components/simulator/scenario-brief");
 
 afterEach(cleanup);
 
@@ -62,11 +64,20 @@ describe("ScenarioBrief", () => {
     expect(screen.getByRole("link", { name: "Expression Studio" })).toHaveAttribute("href", "/expressions");
   });
 
-  it("keeps Start disabled until conversations arrive, and says why", () => {
-    render(<ScenarioBrief scenario={SCENARIO} targets={[]} />);
-    const start = screen.getByRole("button", { name: "Start conversation" });
-    expect(start).toBeDisabled();
-    expect(start).toHaveAccessibleDescription("Starting conversations is coming in the next update.");
+  it("starts a shared scenario by slug and a custom one by id", () => {
+    const { container, rerender } = render(<ScenarioBrief scenario={SCENARIO} targets={[]} />);
+    expect(screen.getByRole("button", { name: "Start conversation" })).toBeEnabled();
+    expect(container.querySelector("input[name=slug]")).toHaveValue("office-hours");
+    expect(container.querySelector("input[name=scenarioId]")).toBeNull();
+
+    rerender(
+      <ScenarioBrief
+        scenario={{ ...SCENARIO, isCustom: true, slug: null, category: "custom" }}
+        targets={[]}
+      />,
+    );
+    expect(container.querySelector("input[name=scenarioId]")).toHaveValue("s1");
+    expect(container.querySelector("input[name=slug]")).toBeNull();
   });
 
   it("renders owner actions when given", () => {

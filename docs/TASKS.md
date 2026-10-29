@@ -30,7 +30,7 @@ and this file updated.
 | Migrations apply on a real Supabase project (Supabase's own roles, default privileges, `auth.users`) | ✅ applied via SQL Editor; anon is denied on every app table and on `consume_ai_quota()` through the Data API |
 | `on_auth_user_created` trigger with the real Supabase Auth signup flow | ✅ manual sign-up on 2026-10-28: `profiles` row created with `display_name` from sign-up metadata, `onboarded_at` null |
 | RLS through PostgREST with real JWTs (supabase-js as two users) | ✅ `npm run db:verify-rls` on 2026-10-28, 26/26: own-row isolation (read/update/delete), spoofed `user_id` inserts, column grants (`profiles.created_at`, `learning_items.mastery_score`, `debriefs.user_id`), custom scenario privacy, same-owner FK, quota RPC + `ai_usage`, anon denied |
-| `consume_ai_quota()` under true concurrent requests | ⏳ not verified (logic is a single upsert; tested sequentially only). Moved to M6, where AI calls start using it |
+| `consume_ai_quota()` under true concurrent requests | ✅ `npm run db:verify-quota` on 2026-10-29: 210 concurrent calls with a daily limit of 200 → exactly 200 allowed, 10 denied, stored count 200, every allowed call got its own count |
 
 The PGlite tests check Postgres semantics only. They don't exercise Supabase itself, so after any
 migration that touches RLS or grants, apply it to the Supabase project and rerun `npm run db:verify-rls`.
@@ -97,10 +97,38 @@ migration that touches RLS or grants, apply it to the Supabase project and rerun
   because the status is sent before `notFound()` runs. Fine for signed-in pages.
 
 ## M6 — AI conversation system (choose provider + verify model ids, provider abstraction, tutor, streaming chat, conversation state)
-- [ ] Verify `consume_ai_quota()` under concurrent requests on the Supabase project (carried over from M2)
-- [ ] Click a magic link for an existing account once (carried over from M2; the code path is unit-tested)
+- [x] Provider: **Gemini** (`@google/genai` 2.29.1) instead of Anthropic, to develop on the free tier. Model ids from
+      env only; `gemini-3.6-flash` verified with `npm run test:ai` (text, stream, Studio card, tutor). Free tier on
+      this project: 5 requests/minute per model. 429 → `provider_quota` (never retried, never switched to a paid
+      service); key rejected → `provider_auth`; safety → `blocked`; empty answer → `invalid_output`; 30 s / 60 s
+      timeouts, one retry for 5xx only. `gemini-3.8-flash` was overloaded on 2026-10-29.
+- [x] Tutor prompt + service: rules in the system prompt, scenario/learner/targets as escaped data in the first user
+      turn; live check: stays in character and won't correct grammar when asked to
+- [x] Start conversation (snapshot, targets from `domain/targets.ts`, opening line settled before any write,
+      cleanup on failure, resume an active conversation on the same scenario within 24 h)
+- [x] `POST /api/conversations/[id]/messages`: NDJSON stream; validation, ownership, active status, 30-turn cap,
+      unique seq for double submits; AI failures keep the learner's message and the reply can be retried; the reply
+      is stored even if the learner leaves mid-stream
+- [x] Chat UI (pinned brief, named partner, streaming, Enter/Shift+Enter, retry, turn warning, sample notice) and
+      End conversation (`active → reviewing`, conditional update)
+- [x] Verify `consume_ai_quota()` under concurrent requests on the Supabase project (carried over from M2):
+      `npm run db:verify-quota`
+- [x] `test:e2e:live` 6/6, including start → chat → reload → resume → end, and an AI-written opening line (mock AI)
+- [ ] Click a magic link for an existing account once (carried over from M2; the code path is unit-tested; needs the
+      learner's own inbox)
+- Decision 2026-10-29: no feedback during the conversation (PRODUCT.md principle 1, and per-message review would
+  double AI calls on a 5/min free tier). The learner asked for sentence-by-sentence feedback: M7 does it after the
+  conversation instead (below).
 
 ## M7 — Conversation Review (reviewer service, `apply_conversation_review` RPC, corrections, save expressions)
+- Review page layout (agreed 2026-10-29): the transcript with each learner message annotated in place ("What you
+  said → More natural → Why", ✓ for messages without issues), plus a summary on top (overall summary, the five
+  AI-estimated learning indicators, strengths, expressions worth saving). One reviewer call per conversation.
+- Picks up conversations already in `reviewing` (ended during M6).
+
+## Backlog (after V1 core)
+- On-demand "How could I say this?" help during a conversation (only when the learner asks; shown as a side note,
+  the character stays in the scene). Needs a PRODUCT.md principle change first.
 
 ## M8 — Gap Tracker (extractor, deterministic aggregation, gap pages)
 

@@ -1,21 +1,39 @@
 import { AIError } from "../errors";
 import { mockStudioCard } from "../fixtures/studio";
-import { readTagged } from "../prompts/studio";
-import type { LLMProvider } from "../provider";
+import { readTagged } from "../prompts/data";
+import type { LLMProvider, TextRequest } from "../provider";
 import { STUDIO_KINDS, type StudioKind } from "@/lib/validation/studio";
+
+// In-character sample replies for tutor requests, picked by turn so a whole conversation is
+// deterministic. Generic enough to fit any scenario.
+const MOCK_OPENING = "Hi there! Thanks for coming by. What can I do for you?";
+const MOCK_REPLIES = [
+  "Oh, okay. Can you tell me a bit more about that?",
+  "I see what you mean. How long has that been going on?",
+  "Got it. What would you like to do next?",
+  "That makes sense. Is there anything else on your mind?",
+];
+const GENERIC = "This is a sample reply from the mock AI provider.";
+
+function mockText(req: TextRequest): string {
+  const briefing = req.messages.find((m) => m.role === "user")?.content ?? "";
+  if (readTagged(briefing, "ai_role") === null) return GENERIC;
+  const learnerTurns = req.messages.filter((m) => m.role === "user").length - 1;
+  if (learnerTurns === 0) return MOCK_OPENING;
+  return MOCK_REPLIES[(learnerTurns - 1) % MOCK_REPLIES.length]!;
+}
 
 /** Deterministic provider for keyless dev, tests and E2E. No network, no keys. */
 export const mockProvider: LLMProvider = {
   name: "mock",
 
-  async generateText() {
-    return "This is a sample reply from the mock AI provider.";
+  async generateText(req) {
+    return mockText(req);
   },
 
-  async *streamText() {
-    for (const word of "This is a sample reply from the mock AI provider.".split(" ")) {
-      yield `${word} `;
-    }
+  async *streamText(req) {
+    // Word by word, like a real stream.
+    for (const word of mockText(req).split(/(?<= )/)) yield word;
   },
 
   async generateJson(req) {
