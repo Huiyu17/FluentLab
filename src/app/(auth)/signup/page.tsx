@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { AuthCard } from "../auth-card";
+import { SignupForm } from "./signup-form";
 
 export const metadata: Metadata = { title: "Create account" };
 
@@ -8,7 +10,7 @@ export default function SignupPage() {
   return (
     <AuthCard
       title="Create your account"
-      description="Account creation is coming in M2. Explore the app in the meantime."
+      description="Practice real conversations and learn what to say next time."
       footer={
         <>
           Already have an account?{" "}
@@ -17,6 +19,8 @@ export default function SignupPage() {
           </Link>
         </>
       }
-    />
+    >
+      <SignupForm configured={isSupabaseConfigured()} />
+    </AuthCard>
   );
 }

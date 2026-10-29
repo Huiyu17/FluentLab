@@ -98,6 +98,8 @@ src/
     shared/                     EmptyState, ErrorState, ScoreRing, Skeletons
   lib/
     supabase/ env.ts client.ts server.ts proxy.ts admin.ts types.ts
+    auth/dal.ts                 data access layer: getAuthState, getCurrentUser, getCurrentProfile,
+                                requireUser, requireOnboardedUser (React cache, per request)
     ai/
       provider.ts               LLMProvider interface + factory (env AI_PROVIDER)
       providers/anthropic.ts openai.ts mock.ts

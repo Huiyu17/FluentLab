@@ -27,8 +27,8 @@ and this file updated.
 | Same migrations on the Postgres version a Supabase project runs (15/17) | ⏳ not verified |
 | RLS isolation, same-owner FKs on INSERT/UPDATE, column grants, quota RPC limit | ✅ automated on PGlite with a stubbed `auth` schema and roles |
 | Seed is idempotent | ✅ automated on PGlite |
-| Migrations apply on a real Supabase project (Supabase's own roles, default privileges, `auth.users`) | ⏳ **not verified**, needs a Supabase project or Docker |
-| `on_auth_user_created` trigger with the real Supabase Auth signup flow | ⏳ not verified (M2) |
+| Migrations apply on a real Supabase project (Supabase's own roles, default privileges, `auth.users`) | ✅ applied via SQL Editor; anon is denied on every app table and on `consume_ai_quota()` through the Data API |
+| `on_auth_user_created` trigger with the real Supabase Auth signup flow | ✅ manual sign-up on 2026-10-28: `profiles` row created with `display_name` from sign-up metadata, `onboarded_at` null |
 | RLS through PostgREST with real JWTs (supabase-js as two users) | ⏳ not verified (M2) |
 | `consume_ai_quota()` under true concurrent requests | ⏳ not verified (logic is a single upsert; tested sequentially only) |
 
@@ -36,10 +36,15 @@ The PGlite tests check Postgres semantics only. They don't exercise Supabase its
 Before M2 ships, run the migrations on a Supabase project and repeat the RLS checks with supabase-js.
 
 ## M2 — Auth + onboarding
-- [ ] Create a Supabase project (or local Supabase with Docker) and apply migrations + seed
+- [x] Create a Supabase project and apply migrations + seed
 - [ ] Complete the pending rows in "Database verification" above
-- [ ] Email/password + magic link via Supabase Auth; `/auth/callback`
-- [ ] Data access layer (`getCurrentUser`), proxy redirect for signed-out users, onboarding gate
+- [x] Email/password + magic link via Supabase Auth; `/auth/callback`
+      (manually verified against the real project: sign-up → confirmation link (`?code=`) → `/onboarding`,
+      password sign-in, wrong password, magic link for an unknown email, invalid link → `/login`.
+      Not yet clicked: a magic link for an existing account. Unit tests cover the actions and callback.)
+- [x] Data access layer: `src/lib/auth/dal.ts` (`getCurrentUser`, `requireUser`, `requireOnboardedUser`)
+- [ ] Proxy redirect for signed-out users (and signed-in users away from /login, /signup), onboarding gate,
+      sign-out button
 - [ ] Onboarding wizard (native language, level, goal, contexts, daily minutes)
 - [ ] Settings page edits profile
 - [ ] Generate `src/lib/supabase/types.ts` from the schema
@@ -63,3 +68,9 @@ Before M2 ships, run the migrations on a Supabase project and repeat the RLS che
 ## M11 — Testing + polish (golden-path E2E, a11y, empty/error states)
 
 ## M12 — Vercel deployment + production Supabase
+- [ ] Custom SMTP for Supabase Auth (built-in email only reaches org members and is heavily rate-limited;
+      templates can't be edited without it)
+- [ ] Switch "Confirm signup" and "Magic Link" templates to
+      `{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=email` so links work on any device
+      (`/auth/callback` already handles both `token_hash` and `code`)
+- [ ] Add the production URL to Supabase Redirect URLs and set `NEXT_PUBLIC_SITE_URL`
