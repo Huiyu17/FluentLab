@@ -24,20 +24,20 @@ and this file updated.
 | Check | Status |
 |---|---|
 | Migrations apply in order on Postgres (PGlite 0.5.12 = Postgres 18; schema needs ≥ 15 for `on delete set null (col)`) | ✅ automated (`npm test`) |
-| Same migrations on the Postgres version a Supabase project runs (15/17) | ⏳ not verified |
+| Same migrations on the Postgres version a Supabase project runs (15/17) | ✅ applied on the Supabase project (Postgres 17) |
 | RLS isolation, same-owner FKs on INSERT/UPDATE, column grants, quota RPC limit | ✅ automated on PGlite with a stubbed `auth` schema and roles |
 | Seed is idempotent | ✅ automated on PGlite |
 | Migrations apply on a real Supabase project (Supabase's own roles, default privileges, `auth.users`) | ✅ applied via SQL Editor; anon is denied on every app table and on `consume_ai_quota()` through the Data API |
 | `on_auth_user_created` trigger with the real Supabase Auth signup flow | ✅ manual sign-up on 2026-10-28: `profiles` row created with `display_name` from sign-up metadata, `onboarded_at` null |
 | RLS through PostgREST with real JWTs (supabase-js as two users) | ✅ `npm run db:verify-rls` on 2026-10-28, 26/26: own-row isolation (read/update/delete), spoofed `user_id` inserts, column grants (`profiles.created_at`, `learning_items.mastery_score`, `debriefs.user_id`), custom scenario privacy, same-owner FK, quota RPC + `ai_usage`, anon denied |
-| `consume_ai_quota()` under true concurrent requests | ⏳ not verified (logic is a single upsert; tested sequentially only) |
+| `consume_ai_quota()` under true concurrent requests | ⏳ not verified (logic is a single upsert; tested sequentially only). Moved to M6, where AI calls start using it |
 
 The PGlite tests check Postgres semantics only. They don't exercise Supabase itself, so after any
 migration that touches RLS or grants, apply it to the Supabase project and rerun `npm run db:verify-rls`.
 
-## M2 — Auth + onboarding
+## M2 — Auth + onboarding ✅
 - [x] Create a Supabase project and apply migrations + seed
-- [ ] Complete the pending rows in "Database verification" above
+- [x] Complete the pending rows in "Database verification" above (quota concurrency moved to M6)
 - [x] Email/password + magic link via Supabase Auth; `/auth/callback`
       (manually verified against the real project: sign-up → confirmation link (`?code=`) → `/onboarding`,
       password sign-in, wrong password, magic link for an unknown email, invalid link → `/login`.
@@ -65,6 +65,8 @@ migration that touches RLS or grants, apply it to the Supabase project and rerun
 ## M5 — Scenario catalog + scenario brief + custom scenario
 
 ## M6 — AI conversation system (choose provider + verify model ids, provider abstraction, tutor, streaming chat, conversation state)
+- [ ] Verify `consume_ai_quota()` under concurrent requests on the Supabase project (carried over from M2)
+- [ ] Click a magic link for an existing account once (carried over from M2; the code path is unit-tested)
 
 ## M7 — Conversation Review (reviewer service, `apply_conversation_review` RPC, corrections, save expressions)
 
