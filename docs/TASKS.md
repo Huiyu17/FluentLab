@@ -29,11 +29,11 @@ and this file updated.
 | Seed is idempotent | ✅ automated on PGlite |
 | Migrations apply on a real Supabase project (Supabase's own roles, default privileges, `auth.users`) | ✅ applied via SQL Editor; anon is denied on every app table and on `consume_ai_quota()` through the Data API |
 | `on_auth_user_created` trigger with the real Supabase Auth signup flow | ✅ manual sign-up on 2026-10-28: `profiles` row created with `display_name` from sign-up metadata, `onboarded_at` null |
-| RLS through PostgREST with real JWTs (supabase-js as two users) | ⏳ not verified (M2) |
+| RLS through PostgREST with real JWTs (supabase-js as two users) | ✅ `npm run db:verify-rls` on 2026-10-28, 26/26: own-row isolation (read/update/delete), spoofed `user_id` inserts, column grants (`profiles.created_at`, `learning_items.mastery_score`, `debriefs.user_id`), custom scenario privacy, same-owner FK, quota RPC + `ai_usage`, anon denied |
 | `consume_ai_quota()` under true concurrent requests | ⏳ not verified (logic is a single upsert; tested sequentially only) |
 
-The PGlite tests check Postgres semantics only. They don't exercise Supabase itself.
-Before M2 ships, run the migrations on a Supabase project and repeat the RLS checks with supabase-js.
+The PGlite tests check Postgres semantics only. They don't exercise Supabase itself, so after any
+migration that touches RLS or grants, apply it to the Supabase project and rerun `npm run db:verify-rls`.
 
 ## M2 — Auth + onboarding
 - [x] Create a Supabase project and apply migrations + seed
@@ -54,7 +54,9 @@ Before M2 ships, run the migrations on a Supabase project and repeat the RLS che
       post-action form reset reverted controlled radios/checkboxes on screen.)
 - [x] Settings page edits profile (manually verified: changes stay on screen after Save, sidebar name
       updates, values persist after reload)
-- [ ] Generate `src/lib/supabase/types.ts` from the schema
+- [x] Generate `src/lib/supabase/types.ts` from the schema (`npm run db:types`, Supabase CLI 2.120.0);
+      server, browser and admin clients are typed with `Database`
+- [x] RLS verified on the real project with two users (`npm run db:verify-rls`)
 
 ## M3 — Today dashboard (static data sources wired, recommendations stubbed)
 
