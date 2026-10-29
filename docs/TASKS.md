@@ -48,8 +48,12 @@ Before M2 ships, run the migrations on a Supabase project and repeat the RLS che
       /login → away when signed in, sign out → /login, signed out /today → /login?next=%2Ftoday → back
       after sign-in. `createClient()` calls `connection()` so Supabase's `Date.now()` expiry checks
       never run during prerendering.)
-- [ ] Onboarding wizard (native language, level, goal, contexts, daily minutes)
-- [ ] Settings page edits profile
+- [x] Onboarding wizard (native language, level, goal, contexts, daily minutes)
+      (manually verified on the real project: 4 steps with per-step validation, Finish sets `onboarded_at`
+      and goes to /today. Forms submit via `startTransition` instead of `<form action>` because React's
+      post-action form reset reverted controlled radios/checkboxes on screen.)
+- [x] Settings page edits profile (manually verified: changes stay on screen after Save, sidebar name
+      updates, values persist after reload)
 - [ ] Generate `src/lib/supabase/types.ts` from the schema
 
 ## M3 — Today dashboard (static data sources wired, recommendations stubbed)
