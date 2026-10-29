@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:e2e:live": "playwright test --config playwright.live.config.ts",
     "db:types": "supabase gen types typescript --project-id mwfvnhpvhtwsoflzigvf --schema public > src/lib/supabase/types.ts && prettier --write src/lib/supabase/types.ts",
     "db:verify-rls": "node --env-file=.env.local --experimental-strip-types --no-warnings=ExperimentalWarning scripts/verify-rls.ts",
     "db:seed-demo": "node --env-file=.env.local --experimental-strip-types --no-warnings=ExperimentalWarning scripts/seed-demo.ts",

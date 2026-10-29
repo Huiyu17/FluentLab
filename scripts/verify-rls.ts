@@ -143,6 +143,36 @@ async function run(a: User, b: User) {
       .update({ mastery_score: 1 })
       .eq("id", item.data?.id ?? "");
     check("Column grant blocks learning_items.mastery_score", DENIED.has(srs.error?.code ?? ""), srs.error);
+
+    // Reviews go through record_item_review() only.
+    const itemId = item.data?.id ?? "";
+    const reviewArgs = { p_item_id: itemId, p_rating: "good", p_mode: "recall", p_expected_review_count: 0 };
+    const own = await a.client.rpc("record_item_review", reviewArgs);
+    check(
+      "A can review its own item (review_count 1, interval 1 day)",
+      own.data?.[0]?.applied === true && own.data[0].review_count === 1 && own.data[0].interval_days === 1,
+      own,
+    );
+    const repeat = await a.client.rpc("record_item_review", reviewArgs);
+    check("A repeated submit is ignored (applied = false)", repeat.data?.[0]?.applied === false, repeat);
+    const logs = await a.client.from("review_logs").select("rating").eq("item_id", itemId);
+    check("Exactly one review log was written", logs.data?.length === 1, logs);
+
+    const foreign = await b.client.rpc("record_item_review", { ...reviewArgs, p_expected_review_count: 1 });
+    check(
+      "B cannot review A's item (not found)",
+      foreign.error?.code === "P0002",
+      foreign.error ?? foreign.data,
+    );
+    const forged = await a.client
+      .from("review_logs")
+      .insert({ item_id: itemId, user_id: a.id, rating: "easy", mode: "recall" });
+    check("A cannot write review_logs directly", DENIED.has(forged.error?.code ?? ""), forged.error);
+    const anonReview = await createClient<Database>(url!, anonKey!, options).rpc(
+      "record_item_review",
+      reviewArgs,
+    );
+    check("anon cannot call record_item_review", Boolean(anonReview.error), anonReview.data);
   }
 
   console.log("scenarios + same-owner FK");

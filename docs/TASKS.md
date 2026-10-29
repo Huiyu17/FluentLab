@@ -69,7 +69,19 @@ migration that touches RLS or grants, apply it to the Supabase project and rerun
       unconfigured notice
 - [x] `npm run db:seed-demo`: demo account for a populated dashboard (manually checked on 2026-10-29)
 
-## M4 — Vocabulary / Expression Studio + My English + review session (`record_item_review` RPC)
+## M4 — Vocabulary / Expression Studio + My English + review session (`record_item_review` RPC) ✅
+- [x] `record_item_review` RPC (migration 0600) with SM-2 lite in SQL, mirrored by `domain/scheduling.ts`;
+      PGlite test: SQL and TS agree on 69 rating sequences. Fixed `learning_items_ease_check` (real vs numeric
+      at 1.3). Applied on the Supabase project; `db:verify-rls` 32/32 (6 new review checks)
+- [x] AI layer skeleton: provider interface, mock provider + Studio fixtures, `generateObject` (Zod → one repair
+      retry → `invalid_output`), `AIError`, quota before every call, Studio prompt with learner text as data
+- [x] Vocabulary / Expression Studio: explain (mock cards labelled as samples), save to My English (re-validated,
+      duplicate-safe), curated list, item detail + delete. Saved state comes from the server, not kept page state
+- [x] My English: overview, URL filters (type, due), list
+- [x] Review session: reveal, optional sentence, Again/Hard/Good/Easy with interval previews, keys 1–4,
+      "Again" requeues, fresh session per visit
+- [x] `npm run test:e2e:live`: real-Supabase E2E as a throwaway user (save → delete → "Add" again; curated →
+      review → not due). Manually checked by the learner on 2026-10-29
 
 ## M5 — Scenario catalog + scenario brief + custom scenario
 

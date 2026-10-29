@@ -151,6 +151,22 @@ All tables have RLS enabled. `anon` has no privileges on any app table (the app 
   the row, so the count can never exceed the limit.
 - Calling it directly from the browser can only spend the caller's own quota.
 
+### Item review RPC (M4): `record_item_review(item_id, rating, mode, expected_review_count)`
+
+- `security definer`, `set search_path = ''`; `execute` only for `authenticated`. Identity from `auth.uid()`.
+- The only way a learner's own review moves an item's schedule: locks the item (`for update`), applies SM-2 lite,
+  updates the item and inserts one `review_logs` row in one transaction. Returns
+  `(applied, review_count, interval_days, ease, mastery_score, next_review_at)`.
+- Another user's item raises `P0002` exactly like a missing one. `mode` is `recall` or `use_in_sentence`;
+  `conversation` is reserved for the M7 review RPC.
+- `expected_review_count` is an optimistic-concurrency guard: a double submit or stale tab gets `applied = false`
+  and the current state, so one answer can never move the schedule twice.
+- The rules mirror `src/lib/domain/scheduling.ts`; `tests/db/scheduling.test.ts` checks both agree on 69 rating
+  sequences (including the ease floor/ceiling and the 365-day cap).
+- The same migration fixed `learning_items_ease_check`: `ease` is `real`, and comparing it with the numeric
+  `1.3` happened in double precision, where the stored real 1.3 is 1.2999999523…, so the minimum ease was
+  rejected. The check now compares as `real`.
+
 ### Review application RPC (M7): `apply_conversation_review(conversation_id, review jsonb, events jsonb)`
 
 Contract fixed now so the schema supports it; implemented in M7/M8. See ARCHITECTURE.md → Conversation state.

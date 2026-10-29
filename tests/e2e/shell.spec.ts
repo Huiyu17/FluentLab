@@ -19,6 +19,27 @@ test.describe("app shell (unconfigured mode)", () => {
     await expect(page.getByRole("heading", { name: "Your daily plan needs an account" })).toBeVisible();
   });
 
+  test("Expression Studio explains with the mock provider and says it's a sample", async ({ page }) => {
+    await page.goto("/expressions");
+    await page.getByLabel("Look up a phrase or expression").fill("touch base");
+    await page.getByRole("button", { name: "Explain" }).click();
+    await expect(page.getByRole("heading", { level: 2, name: "touch base" })).toBeVisible();
+    await expect(page.getByRole("note")).toContainText("AI isn't connected yet");
+    await expect(page.getByRole("button", { name: "Add to My English" })).toBeDisabled();
+  });
+
+  test("Studio rejects empty input", async ({ page }) => {
+    await page.goto("/vocabulary");
+    await page.getByRole("button", { name: "Explain" }).click();
+    await expect(page.getByRole("alert").filter({ hasText: "Type a word or phrase." })).toBeVisible();
+  });
+
+  test("My English explains that saved items need an account", async ({ page }) => {
+    await page.goto("/my-english?type=word&status=due");
+    await expect(page.getByRole("heading", { level: 1, name: "My English" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "My English needs an account" })).toBeVisible();
+  });
+
   test("sidebar navigates between sections and marks the current page", async ({ page, isMobile }) => {
     test.skip(isMobile, "desktop sidebar");
     await page.goto("/today");

@@ -1,16 +1,19 @@
 import type { Metadata } from "next";
-import { PlaceholderPage } from "@/components/shared/placeholder-page";
+import { Suspense } from "react";
+import { PageSkeleton } from "@/components/shared/skeletons";
+import { ItemDetailPage } from "@/components/studio/item-detail";
 
 export const metadata: Metadata = { title: "Saved word" };
 
-// Reads params.itemId once implemented (M4).
-export default function SavedwordPage() {
+async function Content({ params }: { params: PageProps<"/vocabulary/[itemId]">["params"] }) {
+  const { itemId } = await params;
+  return <ItemDetailPage itemId={itemId} section="vocabulary" />;
+}
+
+export default function SavedWordPage({ params }: PageProps<"/vocabulary/[itemId]">) {
   return (
-    <PlaceholderPage
-      title="Saved word"
-      description="A word from My English."
-      milestone="M4"
-      comingNext="The full word card and your review history will appear here."
-    />
+    <Suspense fallback={<PageSkeleton />}>
+      <Content params={params} />
+    </Suspense>
   );
 }

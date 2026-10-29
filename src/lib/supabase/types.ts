@@ -885,6 +885,22 @@ export type Database = {
           daily_limit: number;
         }[];
       };
+      record_item_review: {
+        Args: {
+          p_expected_review_count: number;
+          p_item_id: string;
+          p_mode: string;
+          p_rating: string;
+        };
+        Returns: {
+          applied: boolean;
+          ease: number;
+          interval_days: number;
+          mastery_score: number;
+          next_review_at: string;
+          review_count: number;
+        }[];
+      };
     };
     Enums: {
       [_ in never]: never;

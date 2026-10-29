@@ -103,8 +103,11 @@ src/
     auth/dal.ts                 data access layer: getAuthState, getCurrentUser, getCurrentProfile,
                                 requireUser, requireOnboardedUser (React cache, per request)
     ai/
-      provider.ts               LLMProvider interface + factory (env AI_PROVIDER)
+      provider.ts               LLMProvider interface + factory (env AI_PROVIDER; real providers in M6)
+      structured.ts             generateObject: Zod validation, one repair retry, typed AIError
+      errors.ts quota.ts        AIError + friendly messages; consume_ai_quota() wrapper
       providers/anthropic.ts openai.ts mock.ts
+      fixtures/                 deterministic mock outputs (studio.ts)
       prompts/                  tutor.ts reviewer.ts extractor.ts studio.ts debrief.ts
       schemas/                  zod schemas for every structured output
       services/                 tutor.ts reviewer.ts gap-extractor.ts studio.ts debrief.ts
@@ -115,6 +118,8 @@ src/
       streak.ts                 practice streak + last 7 days, in the learner's time zone
       taxonomy.ts               gap category/subcategory constants
     data/today.ts               server-only reads for the Today page (parallel queries under RLS)
+    data/items.ts               saved items, item detail, curated list, due items for review
+    items.ts                    item types, hrefs, register labels, My English URL filters
     dates.ts                    greeting / relative day formatting in the learner's time zone
     actions/                    server actions grouped by feature
     validation/                 zod input schemas
@@ -130,6 +135,8 @@ scripts/
                                 (gap aggregates match their events); rerun to refresh
 tests/
   unit/  e2e/  fixtures/        (AI fixture transcripts + expected outputs)
+  e2e-live/                     `npm run test:e2e:live` (playwright.live.config.ts): real Supabase project,
+                                throwaway user created and deleted with the service-role key; not in CI
 docs/
 ```
 

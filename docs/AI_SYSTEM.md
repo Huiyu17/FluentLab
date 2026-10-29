@@ -6,18 +6,25 @@
 interface LLMProvider {
   generateText(req: TextRequest): Promise<string>;
   streamText(req: TextRequest): AsyncIterable<string>;
-  generateObject<T>(req: TextRequest & { schema: z.ZodType<T>; name: string }): Promise<T>;
+  generateJson(req: TextRequest & { name: string; jsonSchema: object }): Promise<unknown>; // raw JSON
 }
+// src/lib/ai/structured.ts — the only way to get structured output:
+generateObject<T>(provider, req & { name; schema: z.ZodType<T> }): Promise<T>
 ```
 
-- `anthropic.ts` implements `generateObject` via tool-use with a JSON schema derived from Zod
-  (`zod-to-json-schema`), then `schema.parse`. On failure: one repair retry including the Zod error.
+- Providers only return raw JSON (`anthropic.ts` via tool use with the JSON Schema). `generateObject` builds the
+  JSON Schema with Zod 4's `z.toJSONSchema`, validates with `schema.safeParse`, and on failure makes one repair
+  retry that includes the Zod error; a second failure throws `AIError("invalid_output")`. Validation lives in one
+  place, so every provider gets the same guarantee. Logs record only the failing field paths, never content.
 - `mock.ts` returns deterministic fixtures (used by tests, E2E and keyless dev).
 - Factory picks provider from `AI_PROVIDER` (default `mock`); model per task (chat = fast model, analysis =
   strongest model) from `AI_MODEL_CHAT` / `AI_MODEL_ANALYSIS`. There are **no hardcoded model ids**: the
   provider and model ids are chosen and checked against the provider's current model list in M6. A real
   provider with a missing key or model id fails at startup of that code path with a clear error.
-- Every call first calls the `consume_ai_quota()` RPC (see DATABASE.md) and has a timeout.
+- Every call first calls the `consume_ai_quota()` RPC (see DATABASE.md) and has a timeout (30 s default).
+  Quota is spent only once a provider is available, so a misconfigured provider doesn't use up the day.
+- Mock output for unknown inputs is clearly labelled as a sample, and services return `sample: true` so the UI
+  can say AI isn't connected (M4 Studio uses this until M6).
 
 ## Services (src/lib/ai/services)
 

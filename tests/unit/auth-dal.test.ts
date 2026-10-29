@@ -79,7 +79,9 @@ async function redirectTarget(promise: Promise<unknown>): Promise<string> {
   throw new Error("Expected a redirect");
 }
 
-beforeEach(() => createClient.mockReset());
+beforeEach(() => {
+  createClient.mockReset();
+});
 
 describe("getAuthState", () => {
   it("is unconfigured when Supabase env vars are missing", async () => {
