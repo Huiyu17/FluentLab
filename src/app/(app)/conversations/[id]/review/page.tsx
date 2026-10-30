@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import {
   AnnotatedTranscript,
+  ConversationPatterns,
   ReviewSummary,
   type WorthSaving,
 } from "@/components/review/conversation-review";
@@ -17,6 +18,7 @@ import { getConversation } from "@/lib/data/conversations";
 import {
   expressionKey,
   findSavedExpressions,
+  getConversationPatterns,
   getConversationReview,
   type ConversationReviewView,
 } from "@/lib/data/reviews";
@@ -72,6 +74,9 @@ async function ReviewPage({ params }: { params: PageProps<"/conversations/[id]/r
   const review =
     conversation.status === "completed" ? await getConversationReview(user.id, conversation.id) : null;
   const practiceAgain = scenarioHref(conversation.scenario);
+  const [saving, patterns] = review
+    ? await Promise.all([worthSaving(user.id, review), getConversationPatterns(user.id, conversation.id)])
+    : [[], []];
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
@@ -98,9 +103,10 @@ async function ReviewPage({ params }: { params: PageProps<"/conversations/[id]/r
           <>
             <ReviewSummary
               review={review}
-              worthSaving={await worthSaving(user.id, review)}
+              worthSaving={saving}
               sample={review.model?.startsWith("mock/") ?? false}
             />
+            <ConversationPatterns patterns={patterns} />
             <AnnotatedTranscript
               messages={conversation.messages}
               corrections={review.corrections}

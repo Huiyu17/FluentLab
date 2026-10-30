@@ -63,6 +63,7 @@ function output(overrides: Partial<ReviewOutput> = {}): ReviewOutput {
     strengths: ["Polite question"],
     corrections: [],
     targetsUsed: [],
+    events: [],
     ...overrides,
   };
 }
@@ -159,7 +160,7 @@ describe("resolveReview", () => {
         ],
       }),
       refs(),
-      "mock/reviewer-v1",
+      "mock/reviewer-v2",
     );
     expect(dropped).toBe(5);
     expect(review.corrections.map((c) => [c.messageId, c.original])).toEqual([
@@ -169,10 +170,96 @@ describe("resolveReview", () => {
     expect(review.targetItemsUsed).toEqual([{ itemId: IDS.item1, usedNaturally: true }]);
   });
 
+  const ev = (messageRef: string, original: string, overrides: Record<string, unknown> = {}) => ({
+    messageRef,
+    eventType: "grammar_error" as const,
+    category: "grammar" as const,
+    subCategory: "tenses" as const,
+    original,
+    suggestion: "I wanted to ask",
+    context: "asking about homework",
+    confidence: 0.7,
+    ...overrides,
+  });
+
+  it("resolves language events, dropping unknown refs and invented quotes", () => {
+    const { events, dropped } = resolveReview(
+      output({
+        events: [
+          ev("m1", "I want ask", { confidence: 0.6666 }),
+          ev("m9", "I want ask"), // unknown ref
+          ev("m1", "words never typed"), // not in the message
+          ev("m2", "Could you walk me through", {
+            eventType: "good_usage",
+            category: "pragmatics",
+            subCategory: "polite_requests",
+            suggestion: "should be dropped for good usage",
+          }),
+        ],
+      }),
+      refs(),
+      "m",
+    );
+    expect(dropped).toBe(2);
+    expect(events).toEqual([
+      {
+        messageId: IDS.user1,
+        eventType: "grammar_error",
+        category: "grammar",
+        subCategory: "tenses",
+        original: "I want ask",
+        suggestion: "I wanted to ask",
+        context: "asking about homework",
+        confidence: 0.67, // rounded, so SQL and TypeScript thresholds agree
+      },
+      expect.objectContaining({ messageId: IDS.user2, eventType: "good_usage", suggestion: null }),
+    ]);
+  });
+
+  it("keeps one event per message, type and sub-category: the most confident", () => {
+    const { events, dropped } = resolveReview(
+      output({
+        events: [
+          ev("m1", "I want ask", { confidence: 0.6 }),
+          ev("m1", "I want ask about", { confidence: 0.9 }),
+          ev("m1", "I want ask", { confidence: 0.7 }),
+          ev("m1", "I want ask", { subCategory: "agreement" }),
+        ],
+      }),
+      refs(),
+      "m",
+    );
+    expect(dropped).toBe(2);
+    expect(events.map((e) => [e.subCategory, e.confidence, e.original])).toEqual([
+      ["tenses", 0.9, "I want ask about"],
+      ["agreement", 0.7, "I want ask"],
+    ]);
+  });
+
+  it("rejects events without a valid sub-category pair", () => {
+    const bad = output({ events: [ev("m1", "x", { subCategory: "idioms" }) as never] });
+    expect(ReviewOutputSchema.safeParse(bad).success).toBe(false);
+    const missing = output({ events: [ev("m1", "x", { subCategory: null }) as never] });
+    expect(ReviewOutputSchema.safeParse(missing).success).toBe(false);
+  });
+
   it("produces exactly the payload keys apply_conversation_review reads", () => {
     const { review } = resolveReview(output({ corrections: [correction("m1", "I want ask")] }), refs(), "m");
     expect(Object.keys(review).sort()).toEqual(
       ["corrections", "model", "overallLabel", "scores", "strengths", "summary", "targetItemsUsed"].sort(),
+    );
+    const { events } = resolveReview(output({ events: [ev("m1", "I want ask")] }), refs(), "m");
+    expect(Object.keys(events[0]!).sort()).toEqual(
+      [
+        "category",
+        "confidence",
+        "context",
+        "eventType",
+        "messageId",
+        "original",
+        "subCategory",
+        "suggestion",
+      ].sort(),
     );
     expect(Object.keys(review.corrections[0]!).sort()).toEqual(
       [
@@ -196,11 +283,15 @@ describe("reviewConversation", () => {
     expect(consumeQuota).toHaveBeenCalledTimes(1);
     expect(result.sample).toBe(true);
     expect(result.dropped).toBe(0);
-    expect(result.review.model).toBe("mock/reviewer-v1");
+    expect(result.review.model).toBe("mock/reviewer-v2");
     expect(result.review.summary).toMatch(/sample/i);
     // One sample correction on the first learner turn; the learner typed "walk me through".
     expect(result.review.corrections.map((c) => c.messageId)).toEqual([IDS.user1]);
     expect(result.review.targetItemsUsed).toEqual([{ itemId: IDS.item1, usedNaturally: true }]);
+    expect(result.events.map((e) => [e.messageId, e.eventType, e.subCategory, e.confidence])).toEqual([
+      [IDS.user1, "unnatural_expression", "word_choice", 0.9],
+      [IDS.user2, "good_usage", "polite_requests", 0.8],
+    ]);
   });
 
   it("refuses a conversation without learner turns before spending quota", async () => {
@@ -230,7 +321,7 @@ describe("reviewConversation", () => {
     const provider: LLMProvider = { ...mockProvider, name: "gemini", generateJson };
     const result = await reviewConversation(input(), { consumeQuota: async () => {}, provider });
     expect(result.sample).toBe(false);
-    expect(result.review.model).toBe("gemini/reviewer-v1");
+    expect(result.review.model).toBe("gemini/reviewer-v2");
     expect(generateJson).toHaveBeenCalledWith(
       expect.objectContaining({ task: "analysis", name: "conversation_review", maxTokens: 8192 }),
     );

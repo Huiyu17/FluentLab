@@ -58,7 +58,20 @@ const CONVERSATION: Conversation = {
   targets: [{ itemId: "item-1", expression: "walk me through", meaning: "explain step by step" }],
 };
 
-const REVIEW = { model: "mock/reviewer-v1", summary: "ok", corrections: [], targetItemsUsed: [] };
+const REVIEW = { model: "mock/reviewer-v2", summary: "ok", corrections: [], targetItemsUsed: [] };
+
+const EVENTS = [
+  {
+    messageId: "m1",
+    eventType: "good_usage",
+    category: "pragmatics",
+    subCategory: "polite_requests",
+    original: "Hi professor.",
+    suggestion: null,
+    context: "greeting",
+    confidence: 0.8,
+  },
+];
 
 type Update = { values: unknown; filters: [string, unknown][] };
 
@@ -94,7 +107,7 @@ beforeEach(() => {
   dal.requireUser.mockResolvedValue({ id: USER_ID });
   dal.getCurrentProfile.mockResolvedValue({ englishLevel: "advanced", nativeLanguage: "Korean" });
   getConversation.mockResolvedValue(CONVERSATION);
-  reviewConversation.mockResolvedValue({ review: REVIEW, sample: true, dropped: 0 });
+  reviewConversation.mockResolvedValue({ review: REVIEW, events: EVENTS, sample: true, dropped: 0 });
 });
 
 describe("runReviewAction", () => {
@@ -121,6 +134,7 @@ describe("runReviewAction", () => {
     expect(fake.rpc).toHaveBeenNthCalledWith(2, "apply_conversation_review", {
       p_conversation_id: CONVERSATION_ID,
       p_review: REVIEW,
+      p_events: EVENTS,
     });
     expect(fake.updates).toEqual([]);
   });

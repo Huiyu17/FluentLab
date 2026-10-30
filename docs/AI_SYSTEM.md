@@ -20,7 +20,9 @@ generateObject<T>(provider, req & { name; schema: z.ZodType<T> }): Promise<T>
   (request) / 60 s (stream); one retry for 5xx only. **429 is never retried and never falls back to another
   provider or a paid tier**: it becomes `AIError("provider_quota")` with a clear message. Safety blocks become
   `AIError("blocked")`. Verified 2026-10-29 with `npm run test:ai` (text, stream, Studio card) on
-  `gemini-3.6-flash`; free tier on this project: 5 requests/minute per model (from the 429 details).
+  `gemini-3.6-flash`; free tier on this project: 5 requests/minute **and 20 requests/day** per model (from the 429
+details: `GenerateRequestsPerDayPerProjectPerModel-FreeTier`, found 2026-10-29). Every chat turn, Studio card and
+review is one request, so a day allows roughly one or two practice conversations.
   `gemini-3.8-flash` was overloaded (503 / no response) at the time. Free-tier content may be used by Google
   to improve its products: don't enter real personal information while testing.
 - Providers only return raw JSON. `generateObject` builds the
@@ -47,8 +49,10 @@ interface ExpressionStudio    { explain(input: StudioInput): Promise<StudioCard>
 interface DebriefCoach        { debrief(input: DebriefInput): Promise<DebriefResult> }
 ```
 
-Reviewer and extractor run in parallel on "End conversation". Extractor output feeds deterministic
-aggregation in `src/lib/domain/gaps.ts`.
+Decision (M8, 2026-10-29): the reviewer and the gap extractor are **one model call** that returns corrections and
+language events together (half the quota on a 5-requests/minute free tier, and corrections and events can't
+contradict each other). The two parts are still validated and resolved separately. Events feed deterministic
+aggregation in `src/lib/domain/gaps.ts`. Conversations reviewed before M8 are not re-analysed.
 
 ## Prompts
 
@@ -79,6 +83,11 @@ nothing, and unknown/duplicate target refs. Corrections are sorted into transcri
 2026-10-29 on `gemini-3.6-flash` (`npm run test:ai -- -t "live reviewer"`): grammar (`articles`,
 `isGrammatical=false`) and a too-direct request (`pragmatics/polite_requests`, `isGrammatical=true`) kept apart,
 target use detected, nothing dropped, ~11 s.
+`reviewer-v2` (M8) adds `events` to the same call (`ReviewEventOutputSchema`, ≤ 40): every clear instance in the
+learner's turns, including `good_usage`, with an honest confidence (< 0.6 when debatable). `resolveReview` drops
+events with unknown refs or invented quotes, keeps one per (message, type, category, sub-category) with the highest
+confidence (the table's natural key would otherwise keep whichever came first), forces `suggestion = null` for
+`good_usage` and rounds confidence to 2 decimals so SQL (`real`) and TypeScript apply the same thresholds.
 
 **Gap extractor** — emits atomic events with taxonomy category/sub_category, original, suggestion,
 confidence. Also emits `good_usage` events (needed to mark gaps as improving). Only from user turns.
@@ -162,6 +171,15 @@ so re-applying a review gives the same result.
      lowers its priority.
 
 Rules are pure functions over an event list, so they are unit-tested without a database.
+
+Implemented in M8 (`src/lib/domain/gaps.ts`, mirrored in SQL by `apply_conversation_review`). Because evidence
+only accumulates, the status needs no stored previous status: a gap is activated if its history ever met the
+activation rule, then it is `active` until the improving condition holds **since its last negative event**
+(good usages / targeted conversations strictly after it), and `resolved` once that holds and the last negative
+event is ≥ 30 days old. New negative evidence therefore reopens improving/resolved gaps by construction. Only
+`dismissed` and the previous severity (kept when the 14-day window is empty) carry over. Aggregates count
+negative evidence only; `confidence` is the highest among it. Gap titles and descriptions are fixed per
+sub-category (`GAP_DETAILS` in taxonomy.ts), never AI-written.
 
 ## Learning items & review (src/lib/domain/scheduling.ts)
 

@@ -161,6 +161,8 @@ test("the review annotates each message in place and saves expressions to My Eng
   await composer.press("Enter");
   await expect(bubble(page, "Oh, okay. Can you tell me a bit more about that?")).toBeVisible();
   await composer.fill("Explain question 3 to me again.");
+  // The reply text streams in before it is saved; Enter only sends once the turn has finished.
+  await expect(page.getByRole("button", { name: "Send", exact: true })).toBeEnabled();
   await composer.press("Enter");
   await expect(bubble(page, "I see what you mean. How long has that been going on?")).toBeVisible();
 
@@ -178,6 +180,36 @@ test("the review annotates each message in place and saves expressions to My Eng
   await expect(items.nth(1)).toContainText("More natural");
   await expect(items.nth(3)).toContainText("No suggestions");
   await expect(items.nth(3)).not.toContainText("What you said");
+
+  // The mock review's events reached the learner's gaps: a 0.9 "Word choice" event activates that gap
+  // on its own; the good usage of "Polite requests" is stored but its gap stays emerging (hidden).
+  const { data: gaps } = await admin!
+    .from("language_gaps")
+    .select("sub_category, title, status, evidence_count")
+    .eq("user_id", liveUser().id)
+    .order("sub_category");
+  // (Earlier tests in this file share the learner, so "Word choice" may have more evidence.)
+  expect(gaps).toEqual([
+    { sub_category: "polite_requests", title: "Polite requests", status: "emerging", evidence_count: 0 },
+    {
+      sub_category: "word_choice",
+      title: "Word choice",
+      status: "active",
+      evidence_count: expect.any(Number),
+    },
+  ]);
+  const patterns = page.getByRole("region", { name: "Patterns from this conversation" });
+  await expect(patterns.getByRole("link", { name: /Word choice/ })).toContainText("Focus area");
+  await expect(patterns.getByText("Polite requests").locator("xpath=ancestor::li")).toContainText(
+    "done well 1×",
+  );
+
+  const { data: events } = await admin!
+    .from("language_events")
+    .select("event_type")
+    .eq("conversation_id", conversationId)
+    .order("event_type");
+  expect(events).toEqual([{ event_type: "good_usage" }, { event_type: "unnatural_expression" }]);
 
   // Save the expression; the saved state comes from the server and survives a reload.
   await page.getByRole("button", { name: "Add to My English: Would you mind…?" }).click();

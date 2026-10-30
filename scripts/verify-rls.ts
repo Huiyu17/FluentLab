@@ -299,7 +299,20 @@ async function run(a: User, b: User) {
       ],
       targetItemsUsed: [],
     };
-    const args = { p_conversation_id: conversationId, p_review: review };
+    // M8: one high-confidence event activates the "Articles" gap straight away.
+    const events = [
+      {
+        messageId: message.data?.id,
+        eventType: "grammar_error",
+        category: "grammar",
+        subCategory: "articles",
+        original: "I want ask a question.",
+        suggestion: "I wanted to ask a question.",
+        context: "Check run.",
+        confidence: 0.9,
+      },
+    ];
+    const args = { p_conversation_id: conversationId, p_review: review, p_events: events };
     const bApply = await b.client.rpc("apply_conversation_review", args);
     check(
       "B cannot apply a review to A's conversation",
@@ -325,6 +338,56 @@ async function run(a: User, b: User) {
     check("B cannot see A's feedback", bFeedback.data?.length === 0, bFeedback);
     const status = await a.client.from("conversations").select("status").eq("id", conversationId).single();
     check("A's conversation is completed", status.data?.status === "completed", status);
+
+    console.log("gaps (M8)");
+    const gap = await a.client
+      .from("language_gaps")
+      .select("id, title, status, evidence_count")
+      .eq("sub_category", "articles")
+      .single();
+    check(
+      "The review created an active 'Articles' gap with 1 evidence",
+      gap.data?.title === "Articles" && gap.data.status === "active" && gap.data.evidence_count === 1,
+      gap.error ?? gap.data,
+    );
+    const gapId = gap.data?.id ?? "";
+    const aEvents = await a.client
+      .from("language_events")
+      .select("gap_id")
+      .eq("conversation_id", conversationId);
+    check("A sees its event, linked to the gap", aEvents.data?.[0]?.gap_id === gapId, aEvents);
+    const bGaps = await b.client.from("language_gaps").select("id").eq("id", gapId);
+    check("B cannot see A's gap", bGaps.data?.length === 0, bGaps);
+    const bEvents = await b.client.from("language_events").select("id").eq("conversation_id", conversationId);
+    check("B cannot see A's events", bEvents.data?.length === 0, bEvents);
+
+    const forged = await a.client
+      .from("language_gaps")
+      .update({ status: "resolved" })
+      .eq("id", gapId)
+      .select("id");
+    check("A cannot mark its gap resolved directly", Boolean(forged.error), forged.data);
+    const counts = await a.client.from("language_gaps").update({ evidence_count: 0 }).eq("id", gapId);
+    check("A cannot write gap aggregates", DENIED.has(counts.error?.code ?? ""), counts.error);
+    const recompute = await a.client.rpc("recompute_language_gaps", { p_user_id: b.id });
+    check("A cannot call the internal recompute", Boolean(recompute.error), recompute.data);
+
+    const bDismiss = await b.client
+      .from("language_gaps")
+      .update({ status: "dismissed" })
+      .eq("id", gapId)
+      .select("id");
+    check("B cannot dismiss A's gap (0 rows)", !bDismiss.error && bDismiss.data?.length === 0, bDismiss);
+    const dismiss = await a.client
+      .from("language_gaps")
+      .update({ status: "dismissed" })
+      .eq("id", gapId)
+      .select("id");
+    check("A can dismiss its gap", !dismiss.error && dismiss.data?.length === 1, dismiss);
+    const bRestore = await b.client.rpc("restore_gap", { p_gap_id: gapId });
+    check("B cannot restore A's gap", bRestore.error?.code === "P0002", bRestore.error ?? bRestore.data);
+    const restore = await a.client.rpc("restore_gap", { p_gap_id: gapId });
+    check("A restores its gap to active", restore.data === "active", restore.error ?? restore.data);
   }
 
   console.log("reference data");

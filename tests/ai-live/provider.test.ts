@@ -190,6 +190,12 @@ describe.skipIf(!live)("live reviewer", () => {
       );
     }
     console.log(`REVIEW targets: ${JSON.stringify(review.targetItemsUsed)}`);
+    for (const e of result.events) {
+      console.log(
+        `EVENT [${e.eventType} ${e.category}/${e.subCategory} conf=${e.confidence}] "${e.original}" → ${JSON.stringify(e.suggestion)} (${e.context})`,
+      );
+    }
+    expect(result.events.length).toBeGreaterThan(0);
     expect(review.corrections.length).toBeGreaterThan(0);
   });
 });

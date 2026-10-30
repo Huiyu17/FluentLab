@@ -1,6 +1,8 @@
 import type { OverallLabel } from "@/lib/ai/schemas/review";
 import type { ConversationMessage } from "@/lib/data/conversations";
-import type { ConversationReviewView, ReviewCorrection } from "@/lib/data/reviews";
+import Link from "next/link";
+import type { ConversationPattern, ConversationReviewView, ReviewCorrection } from "@/lib/data/reviews";
+import { GapStatusBadge } from "@/components/gaps/gap-badges";
 import { CATEGORY_LABELS, SCORE_DIMENSIONS, type ScoreDimension } from "@/lib/domain/taxonomy";
 import { cn } from "@/lib/utils";
 import { SaveExpressionButton } from "./save-expression-button";
@@ -215,6 +217,70 @@ export function AnnotatedTranscript({
           );
         })}
       </ol>
+    </section>
+  );
+}
+
+function patternDetails(pattern: ConversationPattern): string {
+  const parts = [];
+  if (pattern.issues > 0)
+    parts.push(`${pattern.issues} ${pattern.issues === 1 ? "moment" : "moments"} to work on`);
+  if (pattern.goodUses > 0) parts.push(`done well ${pattern.goodUses}×`);
+  return parts.join(" · ");
+}
+
+/**
+ * Gaps this conversation added evidence to (Detect step). "Watching" gaps came up once and aren't in
+ * the Gap Tracker yet, so they aren't links.
+ */
+export function ConversationPatterns({ patterns }: { patterns: ConversationPattern[] }) {
+  if (patterns.length === 0) return null;
+  const watching = patterns.some((p) => p.status === "emerging" && p.issues > 0);
+  return (
+    <section
+      aria-labelledby="review-patterns-title"
+      className="flex flex-col gap-3 rounded-2xl border bg-card p-5 sm:p-6"
+    >
+      <div className="flex flex-col gap-1">
+        <h2 id="review-patterns-title" className="font-serif text-xl font-semibold">
+          Patterns from this conversation
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Added to your Gap Tracker, which follows them across conversations.
+        </p>
+      </div>
+      <ul className="flex flex-col divide-y">
+        {patterns.map((pattern) => {
+          const body = (
+            <>
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="font-medium">{pattern.title}</span>
+                <span className="text-sm text-muted-foreground">{patternDetails(pattern)}</span>
+              </span>
+              {pattern.issues > 0 && <GapStatusBadge status={pattern.status} />}
+            </>
+          );
+          return (
+            <li key={pattern.gapId}>
+              {pattern.status === "emerging" ? (
+                <div className="flex items-center gap-3 py-3">{body}</div>
+              ) : (
+                <Link
+                  href={`/gaps/${pattern.gapId}`}
+                  className="-mx-2 flex items-center gap-3 rounded-lg px-2 py-3 transition-colors duration-150 hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                >
+                  {body}
+                </Link>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      {watching && (
+        <p className="text-xs text-muted-foreground">
+          &ldquo;Watching&rdquo; means it came up once. It becomes a focus area if it keeps coming up.
+        </p>
+      )}
     </section>
   );
 }

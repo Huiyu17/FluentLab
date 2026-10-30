@@ -61,7 +61,7 @@ export async function runReviewAction(conversationId: unknown): Promise<RunRevie
     ]);
     if (!conversation?.scenario) return await fail("invalid_input");
 
-    const { review } = await reviewConversation(
+    const { review, events } = await reviewConversation(
       {
         scenario: conversation.scenario,
         learner: {
@@ -81,6 +81,7 @@ export async function runReviewAction(conversationId: unknown): Promise<RunRevie
     const applied = await supabase.rpc("apply_conversation_review", {
       p_conversation_id: id.data,
       p_review: review as unknown as Json,
+      p_events: events as unknown as Json,
     });
     if (applied.error) {
       console.error("[review] apply failed", { code: applied.error.code });

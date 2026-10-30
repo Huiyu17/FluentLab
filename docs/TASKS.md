@@ -158,6 +158,27 @@ migration that touches RLS or grants, apply it to the Supabase project and rerun
   the character stays in the scene). Needs a PRODUCT.md principle change first.
 
 ## M8 — Gap Tracker (extractor, deterministic aggregation, gap pages)
+- Decisions 2026-10-29: reviewer + extractor in **one** AI call; conversations reviewed in M7 are not re-analysed.
+- [x] Step 1: `domain/gaps.ts` — evidence threshold, activation, improving/resolved since the last negative event,
+      14-day severity, sticky dismissed, as a pure function of the event history; `GAP_DETAILS` titles and
+      descriptions per sub-category; unit tests (`tests/unit/domain-gaps.test.ts`)
+- [x] Step 2: migration 0800 — `gap_taxonomy.title/description`, internal `recompute_language_gaps` (SQL mirror of
+      domain/gaps.ts, all of the user's gaps on every review), `apply_conversation_review` with language events
+      (learner messages only, gap found or created, replay-safe), `restore_gap`; PGlite: SQL = TS on 252 random
+      histories covering every status and severity; applied on the Supabase project; `db:verify-rls` 61/61
+      (11 new gap checks); `test:e2e:live` 9/9
+- [x] Step 3: `reviewer-v2` — events in the same call (`ReviewEventOutputSchema`), resolution (unknown refs, invented
+      quotes, one per natural key, 2-decimal confidence), mock events, `runReviewAction` passes `p_events`;
+      `test:e2e:live` 9/9 (mock review → "Word choice" gap active in the real database)
+- [x] Step 4: review page "Patterns from this conversation" (`getConversationPatterns`: evidence ≥ 0.6 from this
+      conversation per gap, current status; "Watching" for emerging gaps, which aren't links; good usage shown as
+      "done well"); `test:e2e:live` checks it after a mock review
+- [x] Step 5: Gap Tracker — `/gaps` (Focus areas / Improving / Resolved, dismissed collapsed; severity, "Seen N× in
+      M conversations", last seen; empty and unconfigured states), `/gaps/[id]` (description, counts, evidence
+      "You said → More natural" linked to the review, good usages, Dismiss with confirm / Restore via
+      `restore_gap`); `data/gaps.ts`, `actions/gaps.ts`, shared `gap-badges.tsx`; `test:e2e:live` gaps 1/1
+- [ ] Live Gemini check of `reviewer-v2` (`npm run test:ai -- -t "live reviewer"`): blocked on 2026-10-29 by the
+      free tier's **20 requests/day** per model (429 `provider_quota`, handled correctly); rerun after the reset
 
 ## M9 — Recommendations + Reuse (targets in scenarios, Today plan, Fluency Profile charts)
 

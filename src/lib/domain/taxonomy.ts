@@ -73,3 +73,98 @@ export const OptionalGapPairSchema = z
     message: "subCategory does not belong to category",
     path: ["subCategory"],
   });
+
+/**
+ * Fixed, learner-facing title and description for each sub-category. Gaps use these (never
+ * AI-written text), so a gap reads the same in every conversation that adds evidence to it.
+ */
+export const GAP_DETAILS: Record<GapSubCategory, { title: string; description: string }> = {
+  polite_requests: {
+    title: "Polite requests",
+    description:
+      'Requests can sound too direct, like an order. Softeners such as "Could you…?" or "Would you mind…?" help.',
+  },
+  conversation_closing: {
+    title: "Ending conversations",
+    description: "Wrapping up a conversation smoothly, without stopping abruptly or dragging on.",
+  },
+  conversation_opening: {
+    title: "Starting conversations",
+    description: "Opening naturally: a greeting and a little context before getting to the point.",
+  },
+  disagreeing_politely: {
+    title: "Disagreeing politely",
+    description: "Pushing back or saying no while keeping the tone friendly and respectful.",
+  },
+  small_talk: {
+    title: "Small talk",
+    description: "Keeping casual conversation going: follow-up questions, reactions and sharing a little.",
+  },
+  turn_taking: {
+    title: "Turn-taking",
+    description:
+      "Answering in a way that invites the other person in, instead of very short or very long turns.",
+  },
+  phrasal_verbs: {
+    title: "Phrasal verbs",
+    description:
+      'Everyday verbs like "figure out" or "follow up" that sound more natural than formal single words.',
+  },
+  collocations: {
+    title: "Word combinations",
+    description: 'Words that natives put together, like "make a decision" rather than "do a decision".',
+  },
+  idioms: {
+    title: "Idioms",
+    description: "Common idiomatic expressions, used in the right place and in the usual form.",
+  },
+  filler_and_softeners: {
+    title: "Fillers and softeners",
+    description:
+      'Small words like "actually", "just" or "kind of" that make speech sound relaxed and less blunt.',
+  },
+  word_choice: {
+    title: "Word choice",
+    description: "Picking the word a native speaker would use in this situation.",
+  },
+  too_formal: {
+    title: "Too formal",
+    description: "Sounding stiff or bookish in a casual situation.",
+  },
+  too_casual: {
+    title: "Too casual",
+    description: "Sounding too relaxed for a professor, a manager or someone you've just met.",
+  },
+  articles: {
+    title: "Articles",
+    description: 'Using "a", "an", "the" or no article.',
+  },
+  tenses: {
+    title: "Verb tenses",
+    description: "Choosing the tense that matches when something happened.",
+  },
+  prepositions: {
+    title: "Prepositions",
+    description: 'Small words like "in", "on", "at" and "for" in the usual combinations.',
+  },
+  word_order: {
+    title: "Word order",
+    description: "Putting words in the natural order, especially in questions.",
+  },
+  agreement: {
+    title: "Agreement",
+    description: 'Matching verbs and nouns: singular and plural, "he goes" rather than "he go".',
+  },
+  academic: {
+    title: "Academic vocabulary",
+    description: "Words for classes, research and campus life.",
+  },
+  everyday: {
+    title: "Everyday vocabulary",
+    description: "Common words for daily situations.",
+  },
+  range_repetition: {
+    title: "Vocabulary range",
+    description: "Reusing the same few words; trying some variety.",
+  },
+};

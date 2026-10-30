@@ -128,6 +128,7 @@ src/
     data/scenarios.ts           shared catalog + own custom scenarios (never selects system_prompt)
     data/conversations.ts       one conversation with messages (by seq) and target expressions; history pages
     data/reviews.ts             stored review (feedback + corrections), saved state of review expressions
+    data/gaps.ts                Gap Tracker list and one gap with its evidence (confidence ≥ 0.6)
     chat-protocol.ts            NDJSON chat events shared by the route handler and ChatPanel
     domain/conversation.ts      scenario snapshot, message/turn limits, speaker names
     scenarios.ts                scenario hrefs, category labels, catalog grouping

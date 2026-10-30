@@ -7,6 +7,7 @@ import {
   MAX_CORRECTIONS,
   ReviewOutputSchema,
   type ConversationReview,
+  type LanguageEventDraft,
   type ReviewOutput,
 } from "../schemas/review";
 import { generateObject } from "../structured";
@@ -15,9 +16,11 @@ export type { ReviewInput } from "../prompts/reviewer";
 
 export type ReviewResult = {
   review: ConversationReview;
+  /** Gap evidence for apply_conversation_review's `p_events`. */
+  events: LanguageEventDraft[];
   /** True when the review came from the mock provider; the UI must say it's a sample. */
   sample: boolean;
-  /** Corrections or target reports that didn't resolve and were dropped (logged as a count only). */
+  /** Corrections, events or target reports that didn't resolve and were dropped (logged as a count only). */
   dropped: number;
 };
 
@@ -34,29 +37,29 @@ function normalize(text: string): string {
     .trim();
 }
 
+/** True when `quote` really appears in the learner's turn (the learner never sees words they didn't write). */
+function quotes(content: string, quote: string): boolean {
+  const normalized = normalize(quote);
+  return normalized.length > 0 && normalize(content).includes(normalized);
+}
+
 /**
- * Maps refs back to ids and keeps only what can be trusted: corrections on a real learner turn
- * whose `original` really appears in that turn (the learner must never see words they didn't
- * write) and whose improvement actually changes something; target reports for real targets,
- * once each.
+ * Maps refs back to ids and keeps only what can be trusted: corrections and events on a real
+ * learner turn whose `original` really appears in that turn; corrections whose improvement
+ * actually changes something; events once per (message, type, sub-category), keeping the most
+ * confident; target reports for real targets, once each.
  */
 export function resolveReview(
   output: ReviewOutput,
   refs: Pick<ReturnType<typeof buildReviewerRequest>, "messageRefs" | "targetRefs">,
   model: string,
-): { review: ConversationReview; dropped: number } {
+): { review: ConversationReview; events: LanguageEventDraft[]; dropped: number } {
   let dropped = 0;
   const order = [...refs.messageRefs.keys()];
 
   const corrections = output.corrections.flatMap((c) => {
     const message = refs.messageRefs.get(c.messageRef);
-    const original = normalize(c.original);
-    if (
-      !message ||
-      !original ||
-      !normalize(message.content).includes(original) ||
-      normalize(c.improved) === original
-    ) {
+    if (!message || !quotes(message.content, c.original) || normalize(c.improved) === normalize(c.original)) {
       dropped += 1;
       return [];
     }
@@ -64,6 +67,30 @@ export function resolveReview(
   });
   // Transcript order; the sort is stable, so corrections on the same turn keep the model's order.
   corrections.sort((a, b) => order.indexOf(a.ref) - order.indexOf(b.ref));
+
+  // Same key as language_events' natural key, which would silently keep only the first.
+  const events = new Map<string, LanguageEventDraft>();
+  for (const e of output.events) {
+    const message = refs.messageRefs.get(e.messageRef);
+    if (!message || !quotes(message.content, e.original)) {
+      dropped += 1;
+      continue;
+    }
+    const draft: LanguageEventDraft = {
+      messageId: message.id,
+      eventType: e.eventType,
+      category: e.category,
+      subCategory: e.subCategory,
+      original: e.original,
+      suggestion: e.eventType === "good_usage" ? null : e.suggestion,
+      context: e.context,
+      confidence: Math.round(e.confidence * 100) / 100,
+    };
+    const key = `${draft.messageId}|${draft.eventType}|${draft.category}|${draft.subCategory}`;
+    const existing = events.get(key);
+    if (existing) dropped += 1;
+    if (!existing || draft.confidence > existing.confidence) events.set(key, draft);
+  }
 
   const seenItems = new Set<string>();
   const targetItemsUsed = output.targetsUsed.flatMap((t) => {
@@ -95,6 +122,7 @@ export function resolveReview(
       })),
       targetItemsUsed,
     },
+    events: [...events.values()],
     dropped,
   };
 }
@@ -124,11 +152,11 @@ export async function reviewConversation(
     timeoutMs: REVIEW_TIMEOUT_MS,
   });
 
-  const { review, dropped } = resolveReview(
+  const { review, events, dropped } = resolveReview(
     output,
     { messageRefs, targetRefs },
     `${provider.name}/${REVIEWER_PROMPT_VERSION}`,
   );
   if (dropped > 0) console.warn("[ai] reviewer output had unresolvable items", { dropped });
-  return { review, sample: provider.name === "mock", dropped };
+  return { review, events, sample: provider.name === "mock", dropped };
 }

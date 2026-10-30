@@ -169,8 +169,8 @@ All tables have RLS enabled. `anon` has no privileges on any app table (the app 
 
 ### Review application RPC (M7): `apply_conversation_review(conversation_id, review jsonb, events jsonb)`
 
-Implemented in M7 (migration 0700); `p_events` must be `[]` until M8 adds gap events. See ARCHITECTURE.md →
-Conversation state.
+Implemented in M7 (migration 0700) and extended with language events in M8 (migration 0800). See
+ARCHITECTURE.md → Conversation state.
 
 - `security definer`, `set search_path = ''`, `execute` only for `authenticated`; identity from `auth.uid()`.
   Another user's conversation raises `P0002` like a missing one.
@@ -181,7 +181,27 @@ Conversation state.
   `conversation_targets.used_naturally` for target items. An item used naturally gets one `review_logs` row
   (`mode = conversation`, rating `good`) and moves by the same SM-2 lite `good` rule as `record_item_review`;
   the partial unique index makes that at most once per conversation. Items that weren't targets are ignored.
-- Finally `status = completed`, `completed_at`, and `overall_score` = rounded mean of the five indicators.
+- M8: up to 60 `language_events` (`{ messageId, eventType, category, subCategory, original, suggestion, context,
+  confidence }`), each on a learner message of this conversation (else `22023`). Each event's gap is found or
+  created for `(user, category, sub_category)` with the fixed title/description from `gap_taxonomy`, and the event
+  is linked to it; the natural key makes replays harmless. An invalid pair fails the composite FK.
+- Finally `status = completed`, `completed_at`, and `overall_score` = rounded mean of the five indicators, then
+  `recompute_language_gaps(user)`.
+
+### Gap recompute (M8): `recompute_language_gaps(user_id)`
+
+Internal (`execute` revoked from every client role; called by the RPCs). Recomputes **all** of the user's gaps
+from their linked events in one set-based `update`, mirroring `src/lib/domain/gaps.ts` (docs/AI_SYSTEM.md → Gap
+detection): evidence = confidence ≥ 0.6 (compared as `real`), aggregates over negative evidence, status from the
+full history (`dismissed` sticky), severity from the last 336 hours (14 × 24 h), resolved after 720 hours. Only
+rows whose values change are written. Recomputing every gap on every review lets time-based changes apply.
+`tests/db/gaps.test.ts` checks SQL and TypeScript agree on 252 random histories that reach every status and
+severity.
+
+`restore_gap(gap_id) returns text`: undoes a dismissal (another user's gap → `P0002`), recomputes and returns the
+gap's status. Clients can still only set `status = 'dismissed'` directly.
+
+`gap_taxonomy` has `title` and `description` (M8), equal to `GAP_DETAILS` in taxonomy.ts (checked by the test).
 
 `claim_conversation_review(conversation_id) returns text` (M7) starts a review attempt with the database clock:
 `failed_review`, an unclaimed `reviewing` (`review_started_at` null, e.g. ended in M6) or one started over 5

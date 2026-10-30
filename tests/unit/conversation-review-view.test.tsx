@@ -5,7 +5,8 @@ import type { ConversationMessage } from "@/lib/data/conversations";
 import type { ConversationReviewView, ReviewCorrection } from "@/lib/data/reviews";
 
 vi.mock("@/lib/actions/conversation-review", () => ({ saveReviewExpressionAction: vi.fn() }));
-const { AnnotatedTranscript, ReviewSummary } = await import("@/components/review/conversation-review");
+const { AnnotatedTranscript, ConversationPatterns, ReviewSummary } =
+  await import("@/components/review/conversation-review");
 
 afterEach(cleanup);
 
@@ -47,7 +48,7 @@ const REVIEW: ConversationReviewView = {
   overallLabel: "developing",
   scores: { fluency: 65, naturalness: 60, grammar: 55, vocabulary: 65, confidence: 70 },
   strengths: ["Clear question"],
-  model: "gemini/reviewer-v1",
+  model: "gemini/reviewer-v2",
   corrections: [CORRECTION],
 };
 
@@ -137,5 +138,34 @@ describe("ReviewSummary", () => {
     render(<ReviewSummary review={REVIEW} worthSaving={[]} sample />);
     expect(screen.getByRole("note")).toHaveTextContent("Sample review");
     expect(screen.queryByText("Expressions worth saving")).toBeNull();
+  });
+});
+
+describe("ConversationPatterns", () => {
+  const patterns = [
+    { gapId: "g1", title: "Word choice", status: "active" as const, issues: 2, goodUses: 0 },
+    { gapId: "g2", title: "Articles", status: "emerging" as const, issues: 1, goodUses: 0 },
+    { gapId: "g3", title: "Polite requests", status: "emerging" as const, issues: 0, goodUses: 1 },
+  ];
+
+  it("links tracked gaps, explains 'Watching' and shows what this conversation added", () => {
+    render(<ConversationPatterns patterns={patterns} />);
+    const section = screen.getByRole("region", { name: "Patterns from this conversation" });
+    expect(within(section).getByRole("link", { name: /Word choice/ })).toHaveAttribute("href", "/gaps/g1");
+    expect(within(section).getByText("2 moments to work on")).toBeVisible();
+    expect(within(section).getByText("Focus area")).toBeVisible();
+    // Emerging gaps aren't in the Gap Tracker yet: no link.
+    expect(within(section).queryByRole("link", { name: /Articles/ })).toBeNull();
+    expect(within(section).getByText("Watching")).toBeVisible();
+    expect(within(section).getByText(/came up once/)).toBeVisible();
+    // A gap with only good usage shows that, without a status chip.
+    const polite = within(section).getByText("Polite requests").closest("li")!;
+    expect(polite).toHaveTextContent("done well 1×");
+    expect(polite.textContent).not.toMatch(/Watching|Focus/);
+  });
+
+  it("renders nothing without patterns", () => {
+    const { container } = render(<ConversationPatterns patterns={[]} />);
+    expect(container).toBeEmptyDOMElement();
   });
 });

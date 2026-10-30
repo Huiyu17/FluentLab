@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { EVENT_TYPES, type EventType } from "@/lib/domain/gaps";
 import {
   GapCategorySchema,
   GapSubCategorySchema,
@@ -12,6 +13,8 @@ export type OverallLabel = (typeof OVERALL_LABELS)[number];
 
 /** At most this many corrections per conversation (also enforced by apply_conversation_review). */
 export const MAX_CORRECTIONS = 8;
+/** At most this many language events per conversation (the RPC accepts up to 60). */
+export const MAX_EVENTS = 40;
 
 const text = (max: number) => z.string().trim().min(1).max(max);
 const Score = z.number().int().min(0).max(100);
@@ -42,6 +45,28 @@ export const ReviewCorrectionOutputSchema = z
     }
   });
 
+/** One piece of gap evidence (docs/AI_SYSTEM.md → Gap extractor). Every event needs a sub-category. */
+export const ReviewEventOutputSchema = z
+  .object({
+    messageRef: z.string().trim().max(10),
+    eventType: z.enum(EVENT_TYPES),
+    category: GapCategorySchema,
+    subCategory: GapSubCategorySchema,
+    original: text(1000),
+    suggestion: text(1000).nullable(),
+    context: z.string().trim().max(300),
+    confidence: z.number().min(0).max(1),
+  })
+  .superRefine((value, ctx) => {
+    if (!isValidGapPair(value.category, value.subCategory)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["subCategory"],
+        message: `"${value.subCategory}" is not a sub-category of "${value.category}".`,
+      });
+    }
+  });
+
 export const ReviewOutputSchema = z.object({
   summary: text(600),
   overallLabel: z.enum(OVERALL_LABELS),
@@ -57,6 +82,7 @@ export const ReviewOutputSchema = z.object({
   targetsUsed: z
     .array(z.object({ targetRef: z.string().trim().max(10), usedNaturally: z.boolean() }))
     .max(10),
+  events: z.array(ReviewEventOutputSchema).max(MAX_EVENTS),
 });
 
 export type ReviewOutput = z.infer<typeof ReviewOutputSchema>;
@@ -82,4 +108,17 @@ export type ConversationReview = {
     saveableExpressions: { expression: string; meaning: string }[];
   }[];
   targetItemsUsed: { itemId: string; usedNaturally: boolean }[];
+};
+
+/** A resolved language event: the `p_events` payload of apply_conversation_review. */
+export type LanguageEventDraft = {
+  messageId: string;
+  eventType: EventType;
+  category: GapCategory;
+  subCategory: GapSubCategory;
+  original: string;
+  suggestion: string | null;
+  context: string;
+  /** Rounded to 2 decimals, so SQL (real) and TypeScript apply the same thresholds. */
+  confidence: number;
 };

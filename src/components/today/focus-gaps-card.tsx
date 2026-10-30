@@ -1,15 +1,9 @@
 import Link from "next/link";
+import { SeverityBadge } from "@/components/gaps/gap-badges";
 import { Button } from "@/components/ui/button";
 import type { FocusGap } from "@/lib/data/today";
-import type { GapSeverity } from "@/lib/domain/recommendations";
 import { cn } from "@/lib/utils";
 import { CardEmpty, DashboardCard, linkRow, pluralize } from "./dashboard-card";
-
-const SEVERITY: Record<GapSeverity, { label: string; className: string }> = {
-  high: { label: "High priority", className: "bg-destructive-soft text-destructive" },
-  medium: { label: "Medium priority", className: "bg-warning-soft text-warning" },
-  low: { label: "Low priority", className: "bg-muted text-muted-foreground" },
-};
 
 const chip = "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium";
 
@@ -55,9 +49,7 @@ export function FocusGapsCard({
               <Link href={`/gaps/${gap.id}`} className={cn(linkRow, "flex flex-col gap-1.5")}>
                 <span className="flex flex-wrap items-center gap-2">
                   <span className="font-medium">{gap.title}</span>
-                  <span className={cn(chip, SEVERITY[gap.severity].className)}>
-                    {SEVERITY[gap.severity].label}
-                  </span>
+                  <SeverityBadge severity={gap.severity} />
                   {gap.status === "improving" && (
                     <span className={cn(chip, "bg-primary-soft text-primary")}>Improving</span>
                   )}

@@ -325,7 +325,7 @@ describe("apply_conversation_review()", () => {
     const correction = reviewPayload().corrections[0]!;
     await asUser(db, A, async (tx) => {
       await rejectsCleanly(tx, () => apply(tx, activeConv, reviewPayload()), /not being reviewed/);
-      await rejectsCleanly(tx, () => apply(tx, conv, reviewPayload(), [{}]), /not supported yet/);
+      await rejectsCleanly(tx, () => apply(tx, conv, reviewPayload(), {}), /invalid review payload/);
       await rejectsCleanly(tx, () => apply(tx, conv, { summary: "no scores" }), /invalid review payload/);
       await rejectsCleanly(
         tx,

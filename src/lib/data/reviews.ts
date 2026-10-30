@@ -8,6 +8,7 @@ import {
   type GapCategory,
   type GapSubCategory,
 } from "@/lib/domain/taxonomy";
+import { EVIDENCE_MIN_CONFIDENCE, GAP_STATUSES, type GapStatus } from "@/lib/domain/gaps";
 import { createClient } from "@/lib/supabase/server";
 
 export type SaveableExpression = { expression: string; meaning: string };
@@ -30,7 +31,7 @@ export type ConversationReviewView = {
   overallLabel: OverallLabel;
   scores: { fluency: number; naturalness: number; grammar: number; vocabulary: number; confidence: number };
   strengths: string[];
-  /** e.g. "mock/reviewer-v1": the UI labels mock reviews as samples. */
+  /** e.g. "mock/reviewer-v2": the UI labels mock reviews as samples. */
   model: string | null;
   corrections: ReviewCorrection[];
 };
@@ -137,4 +138,62 @@ export async function findSavedExpressions(
     if (wanted.has(key)) saved.set(key, row.id);
   }
   return saved;
+}
+
+/** A gap this conversation added evidence to, and what it added. */
+export type ConversationPattern = {
+  gapId: string;
+  title: string;
+  status: GapStatus;
+  /** Negative evidence (confidence ≥ 0.6) from this conversation. */
+  issues: number;
+  /** Good usages (confidence ≥ 0.6) from this conversation. */
+  goodUses: number;
+};
+
+/**
+ * The gaps this conversation's language events count towards, with the gap's current status.
+ * Low-confidence events are stored but aren't evidence, so they aren't shown either.
+ */
+export async function getConversationPatterns(
+  userId: string,
+  conversationId: string,
+): Promise<ConversationPattern[]> {
+  const supabase = await createClient();
+  if (!supabase) return [];
+
+  const { data: events, error } = await supabase
+    .from("language_events")
+    .select("gap_id, event_type, confidence")
+    .eq("user_id", userId)
+    .eq("conversation_id", conversationId)
+    .gte("confidence", EVIDENCE_MIN_CONFIDENCE)
+    .not("gap_id", "is", null);
+  if (error) fail("conversation events", error);
+
+  const counts = new Map<string, { issues: number; goodUses: number }>();
+  for (const e of events ?? []) {
+    if (!e.gap_id) continue;
+    const count = counts.get(e.gap_id) ?? { issues: 0, goodUses: 0 };
+    if (e.event_type === "good_usage") count.goodUses += 1;
+    else count.issues += 1;
+    counts.set(e.gap_id, count);
+  }
+  if (counts.size === 0) return [];
+
+  const { data: gaps, error: gapsError } = await supabase
+    .from("language_gaps")
+    .select("id, title, status")
+    .eq("user_id", userId)
+    .in("id", [...counts.keys()]);
+  if (gapsError) fail("conversation gaps", gapsError);
+
+  const StatusSchema = z.enum(GAP_STATUSES);
+  return (gaps ?? [])
+    .flatMap((g) => {
+      const status = StatusSchema.safeParse(g.status);
+      const count = counts.get(g.id);
+      return status.success && count ? [{ gapId: g.id, title: g.title, status: status.data, ...count }] : [];
+    })
+    .sort((a, b) => b.issues - a.issues || b.goodUses - a.goodUses || a.title.localeCompare(b.title));
 }

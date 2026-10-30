@@ -399,15 +399,21 @@ export type Database = {
       gap_taxonomy: {
         Row: {
           category: string;
+          description: string;
           sub_category: string;
+          title: string;
         };
         Insert: {
           category: string;
+          description?: string;
           sub_category: string;
+          title?: string;
         };
         Update: {
           category?: string;
+          description?: string;
           sub_category?: string;
+          title?: string;
         };
         Relationships: [
           {
@@ -893,6 +899,10 @@ export type Database = {
           daily_limit: number;
         }[];
       };
+      recompute_language_gaps: {
+        Args: { p_user_id: string };
+        Returns: undefined;
+      };
       record_item_review: {
         Args: {
           p_expected_review_count: number;
@@ -909,6 +919,7 @@ export type Database = {
           review_count: number;
         }[];
       };
+      restore_gap: { Args: { p_gap_id: string }; Returns: string };
     };
     Enums: {
       [_ in never]: never;

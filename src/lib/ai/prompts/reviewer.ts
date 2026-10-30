@@ -2,11 +2,11 @@ import type { ScenarioSnapshot } from "@/lib/domain/conversation";
 import { GAP_TAXONOMY } from "@/lib/domain/taxonomy";
 import { ENGLISH_LEVEL_LABELS } from "@/lib/validation/profile";
 import type { ChatMessage } from "../provider";
-import { MAX_CORRECTIONS } from "../schemas/review";
+import { MAX_CORRECTIONS, MAX_EVENTS } from "../schemas/review";
 import { escapeData, tagged, unescapeData } from "./data";
 import type { TutorLearner } from "./tutor";
 
-export const REVIEWER_PROMPT_VERSION = "reviewer-v1";
+export const REVIEWER_PROMPT_VERSION = "reviewer-v2";
 
 export type ReviewMessage = { id: string; role: "user" | "assistant"; content: string };
 export type ReviewTarget = { itemId: string; expression: string; meaning: string };
@@ -60,7 +60,21 @@ Summary and indicators:
   never describe them as CEFR or an official assessment. A short conversation gives rough estimates.
 - strengths: up to 4 specific things the learner did well, quoting them when possible.
 - targetsUsed: for each <targets> expression the learner actually used (or clearly tried), its id
-  and whether it was used naturally. Leave out targets they didn't use.`;
+  and whether it was used naturally. Leave out targets they didn't use.
+
+Language events (evidence for the learner's long-term profile, separate from the corrections):
+- List every clear instance in the learner's turns, up to ${MAX_EVENTS}, not only the ones you
+  corrected. One event per turn, type and sub-category.
+- eventType: grammar_error, unnatural_expression (correct but not what people say),
+  overly_direct (too blunt for the relationship), register_mismatch (too formal or too casual),
+  limited_vocabulary (vague or repetitive words), missed_opportunity (left out something the
+  situation called for, like a greeting, a thank-you or a closing), or good_usage (the learner did
+  this well: natural phrasing, polite softening, a fitting idiom). Include good_usage events too.
+- category and subCategory come from the same list as corrections; subCategory is required.
+- original: the exact words copied from that learner turn. suggestion: a natural alternative, or
+  null for good_usage. context: a few words on the situation, e.g. "asking the professor for help".
+- confidence 0–1: how sure you are this really is an instance. Be honest; use below 0.6 when it's
+  debatable, a matter of taste, or could be a typo.`;
 
 function learnerTurn(ref: string, content: string): string {
   return `<learner id="${ref}">${escapeData(content)}</learner>`;
