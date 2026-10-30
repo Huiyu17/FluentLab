@@ -40,8 +40,8 @@ migration that touches RLS or grants, apply it to the Supabase project and rerun
 - [x] Complete the pending rows in "Database verification" above (quota concurrency moved to M6)
 - [x] Email/password + magic link via Supabase Auth; `/auth/callback`
       (manually verified against the real project: sign-up → confirmation link (`?code=`) → `/onboarding`,
-      password sign-in, wrong password, magic link for an unknown email, invalid link → `/login`.
-      Not yet clicked: a magic link for an existing account. Unit tests cover the actions and callback.)
+      password sign-in, wrong password, magic link for an unknown email, invalid link → `/login`, and (in M6) a
+      magic link for an existing account. Unit tests cover the actions and callback.)
 - [x] Data access layer: `src/lib/auth/dal.ts` (`getCurrentUser`, `requireUser`, `requireOnboardedUser`)
 - [x] Proxy redirect for signed-out users (and signed-in users away from /login, /signup), onboarding gate,
       sign-out button (manually verified on the real project: /today → /onboarding while not onboarded,
@@ -96,7 +96,7 @@ migration that touches RLS or grants, apply it to the Supabase project and rerun
 - Note: not-found inside a streamed (Suspense) page renders the not-found UI with HTTP 200 + noindex,
   because the status is sent before `notFound()` runs. Fine for signed-in pages.
 
-## M6 — AI conversation system (choose provider + verify model ids, provider abstraction, tutor, streaming chat, conversation state)
+## M6 — AI conversation system (choose provider + verify model ids, provider abstraction, tutor, streaming chat, conversation state) ✅
 - [x] Provider: **Gemini** (`@google/genai` 2.29.1) instead of Anthropic, to develop on the free tier. Model ids from
       env only; `gemini-3.6-flash` verified with `npm run test:ai` (text, stream, Studio card, tutor). Free tier on
       this project: 5 requests/minute per model. 429 → `provider_quota` (never retried, never switched to a paid
@@ -114,8 +114,8 @@ migration that touches RLS or grants, apply it to the Supabase project and rerun
 - [x] Verify `consume_ai_quota()` under concurrent requests on the Supabase project (carried over from M2):
       `npm run db:verify-quota`
 - [x] `test:e2e:live` 6/6, including start → chat → reload → resume → end, and an AI-written opening line (mock AI)
-- [ ] Click a magic link for an existing account once (carried over from M2; the code path is unit-tested; needs the
-      learner's own inbox)
+- [x] Click a magic link for an existing account once (carried over from M2): manually verified by the learner on
+      2026-10-29 (sign-in link → signed in → /today)
 - Decision 2026-10-29: no feedback during the conversation (PRODUCT.md principle 1, and per-message review would
   double AI calls on a 5/min free tier). The learner asked for sentence-by-sentence feedback: M7 does it after the
   conversation instead (below).
