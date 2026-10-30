@@ -49,8 +49,11 @@ Dark mode: deferred (V2).
 
 ## Key patterns
 
-- **Correction card:** "What you said" (muted) → "More natural" (coral-soft background) → "Why" text →
-  save checkboxes for expressions. Label "Grammatically correct ✓" when `isGrammatical`.
+- **Correction card:** "What you said" (muted) → "More natural" (coral-soft background) → "Why" text, with a
+  label "Grammar error" (coral) or "Grammatically correct, could sound more natural" (muted) and the category.
+  Shown under the learner's message in the transcript. A message without a correction gets a quiet
+  "No suggestions", never a ✓ or "correct" (the reviewer only picks the most useful ≤ 8). Expressions worth
+  saving have "Add to My English" buttons in the review summary.
 - **Chat:** not a generic chatbot. Scenario brief pinned at top (role, goal), messages as calm bubbles,
   AI speaker name ("Professor Lee") instead of "Assistant", clear "End conversation" button.
 - **Indicators:** small ring or bar + number; always captioned "AI-estimated learning indicators".

@@ -8,7 +8,7 @@ export function escapeData(text: string): string {
   return text.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c] ?? c);
 }
 
-function unescapeData(text: string): string {
+export function unescapeData(text: string): string {
   return text.replace(
     /&(lt|gt|amp);/g,
     (_, entity: string) => ({ lt: "<", gt: ">", amp: "&" })[entity] ?? "",

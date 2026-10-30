@@ -120,11 +120,38 @@ migration that touches RLS or grants, apply it to the Supabase project and rerun
   double AI calls on a 5/min free tier). The learner asked for sentence-by-sentence feedback: M7 does it after the
   conversation instead (below).
 
-## M7 — Conversation Review (reviewer service, `apply_conversation_review` RPC, corrections, save expressions)
+## M7 — Conversation Review (reviewer service, `apply_conversation_review` RPC, corrections, save expressions) ✅
 - Review page layout (agreed 2026-10-29): the transcript with each learner message annotated in place ("What you
-  said → More natural → Why", ✓ for messages without issues), plus a summary on top (overall summary, the five
-  AI-estimated learning indicators, strengths, expressions worth saving). One reviewer call per conversation.
+  said → More natural → Why"), plus a summary on top (overall summary, the five AI-estimated learning
+  indicators, strengths, expressions worth saving). One reviewer call per conversation.
+- Messages without a correction are **not** marked as correct (the reviewer picks at most 8 corrections, so the
+  rest are only "not selected"): no mark, or a quiet "No suggestions" note (learner's request, 2026-10-29).
 - Picks up conversations already in `reviewing` (ended during M6).
+- Decisions 2026-10-29: End goes straight to `/conversations/[id]/review`, which runs the review with a progress
+  UI (free-tier calls can take 20–40 s); gap events stay in M8 (`p_events` must be empty until then).
+- [x] Step 1: migration 0700 — `apply_conversation_review` (single writer, replay no-op, learner-message check,
+      Reuse scheduling with the `good` rule), `claim_conversation_review` (5-minute stale reclaim), client status
+      guard trigger; PGlite tests (`tests/db/conversation-review.test.ts`); applied on the Supabase project;
+      `db:verify-rls` 50/50 (14 new review checks); `test:e2e:live` 6/6 (End still works with the guard)
+- [x] Step 2: reviewer — `ReviewOutputSchema` (refs, taxonomy pairs, ≤ 8 corrections), `reviewer-v1` prompt
+      (transcript as escaped data), `reviewConversation` + `resolveReview` (drops unresolvable refs and quotes
+      the learner didn't write), mock fixture; unit tests; live Gemini review checked once (~11 s)
+- [x] Step 3: running the review — End → `/conversations/[id]/review` (empty conversations → `abandoned`),
+      `runReviewAction` (claim → reviewer → apply; failures → `failed_review` + code), `ReviewRunner` (progress,
+      another-tab wait, Try again, no automatic retry after a failure); `test:e2e:live` 7/7 (end → mock review →
+      completed, no double review on reload, failed review → Try again, empty conversation abandoned)
+- [x] Step 4: review page — summary (label, five captioned indicators, strengths, expressions worth saving with
+      server-derived saved state), transcript annotated in place ("No suggestions" for uncorrected turns),
+      sample notice for mock reviews, next-step links; `saveReviewExpressionAction` (text read from the stored
+      correction, `source = review`, linked to conversation + correction); item page links back to the review;
+      `test:e2e:live` 8/8
+- [x] Step 5: Conversation History (`/conversations`) — newest first, 20 per page with a `started_at` cursor
+      ("Older conversations"), title, status chip, date, learner turns, overall label; links to the review or the
+      chat (`conversationHref`, shared with Today's recent activity); empty and unconfigured states;
+      `test:e2e:live` 9/9
+- [x] Step 6: Today's recent activity links ended conversations to their review (checked in `test:e2e:live`);
+      docs updated. Manually checked by the learner on 2026-10-29 with Gemini: end → review → summary, and an
+      M6-era conversation reviewed on open
 
 ## Backlog (after V1 core)
 - On-demand "How could I say this?" help during a conversation (only when the learner asks; shown as a side note,

@@ -76,7 +76,7 @@ const ITEMS = [
 
 type Call = [method: string, ...args: unknown[]];
 type Query = { table: string; calls: Call[] };
-type Result = { data?: unknown; error?: { code: string } | null };
+type Result = { data?: unknown; count?: number; error?: { code: string } | null };
 
 function fakeSupabase(respond: (q: Query) => Result = () => ({}), quotaAllowed = true) {
   const queries: Query[] = [];
@@ -268,18 +268,35 @@ describe("startConversationAction", () => {
 });
 
 describe("endConversationAction", () => {
-  it("moves only the learner's active conversation to reviewing, once", async () => {
-    const fake = fakeSupabase();
+  it("moves only the learner's active conversation to reviewing, once, and opens the review", async () => {
+    const fake = fakeSupabase((q) => (q.table === "messages" ? { count: 2 } : {}));
+    createClient.mockResolvedValue(fake.client);
+    const data = new FormData();
+    data.set("conversationId", CONVERSATION_ID);
+
+    expect(await redirectTarget(endConversationAction(data))).toBe(
+      `/conversations/${CONVERSATION_ID}/review`,
+    );
+    const counted = find(fake.queries, "messages", "select")!;
+    expect(counted.calls).toContainEqual(["eq", "role", "user"]);
+    expect(counted.calls).toContainEqual(["eq", "user_id", USER_ID]);
+    const update = find(fake.queries, "conversations", "update")!;
+    expect(arg(update, "update")).toMatchObject({ status: "reviewing", ended_at: expect.any(String) });
+    expect(update.calls).toContainEqual(["eq", "id", CONVERSATION_ID]);
+    expect(update.calls).toContainEqual(["eq", "user_id", USER_ID]);
+    // Conditional: a second click or another tab finds no active row and changes nothing.
+    expect(update.calls).toContainEqual(["eq", "status", "active"]);
+  });
+
+  it("abandons a conversation where the learner never wrote anything", async () => {
+    const fake = fakeSupabase((q) => (q.table === "messages" ? { count: 0 } : {}));
     createClient.mockResolvedValue(fake.client);
     const data = new FormData();
     data.set("conversationId", CONVERSATION_ID);
 
     expect(await redirectTarget(endConversationAction(data))).toBe(`/conversations/${CONVERSATION_ID}`);
     const update = find(fake.queries, "conversations", "update")!;
-    expect(arg(update, "update")).toMatchObject({ status: "reviewing", ended_at: expect.any(String) });
-    expect(update.calls).toContainEqual(["eq", "id", CONVERSATION_ID]);
-    expect(update.calls).toContainEqual(["eq", "user_id", USER_ID]);
-    // Conditional: a second click or another tab finds no active row and changes nothing.
+    expect(arg(update, "update")).toMatchObject({ status: "abandoned" });
     expect(update.calls).toContainEqual(["eq", "status", "active"]);
   });
 

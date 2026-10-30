@@ -142,8 +142,9 @@ export async function startConversationAction(
 }
 
 /**
- * Ends the conversation: `active → reviewing` with a conditional update, so a double click or a
- * second tab changes nothing. The review itself runs in M7; it picks up conversations in `reviewing`.
+ * Ends the conversation with a conditional update (`.eq("status", "active")`), so a double click or a
+ * second tab changes nothing. With something to review it becomes `reviewing` and the review page runs
+ * the review; a conversation where the learner never wrote anything is `abandoned` instead.
  */
 export async function endConversationAction(formData: FormData): Promise<void> {
   const id = z.uuid().safeParse(formData.get("conversationId"));
@@ -152,9 +153,21 @@ export async function endConversationAction(formData: FormData): Promise<void> {
   const supabase = await createClient();
   if (!supabase) redirect(`/conversations/${id.data}`);
 
+  const { count, error: countError } = await supabase
+    .from("messages")
+    .select("id", { count: "exact", head: true })
+    .eq("conversation_id", id.data)
+    .eq("user_id", user.id)
+    .eq("role", "user");
+  if (countError) {
+    console.error("[conversation] end failed", { code: countError.code });
+    throw new Error("Could not end the conversation.");
+  }
+  const nothingToReview = (count ?? 0) === 0;
+
   const { error } = await supabase
     .from("conversations")
-    .update({ status: "reviewing", ended_at: new Date().toISOString() })
+    .update({ status: nothingToReview ? "abandoned" : "reviewing", ended_at: new Date().toISOString() })
     .eq("id", id.data)
     .eq("user_id", user.id)
     .eq("status", "active");
@@ -162,5 +175,5 @@ export async function endConversationAction(formData: FormData): Promise<void> {
     console.error("[conversation] end failed", { code: error.code });
     throw new Error("Could not end the conversation.");
   }
-  redirect(`/conversations/${id.data}`);
+  redirect(nothingToReview ? `/conversations/${id.data}` : `/conversations/${id.data}/review`);
 }

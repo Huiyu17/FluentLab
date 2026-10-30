@@ -74,9 +74,9 @@ test.describe("app shell (unconfigured mode)", () => {
     await expect(dialog).toBeHidden();
   });
 
-  test("dynamic placeholder routes render", async ({ page }) => {
+  test("dynamic routes explain that they need an account", async ({ page }) => {
     await page.goto("/conversations/00000000-0000-4000-8000-000000000001/review");
-    await expect(page.getByRole("heading", { level: 1, name: "Conversation Review" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Reviews need an account" })).toBeVisible();
   });
 
   test("unknown routes show the 404 page", async ({ page }) => {

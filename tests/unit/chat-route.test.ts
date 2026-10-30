@@ -48,6 +48,7 @@ function conversation(messages: ConversationMessage[], overrides: Partial<Conver
     },
     startedAt: "2026-10-29T12:00:00Z",
     endedAt: null,
+    reviewError: null,
     messages,
     targets: [],
     ...overrides,

@@ -38,6 +38,14 @@ function PlainItem({ item, actions }: { item: ItemDetail; actions: ReactNode }) 
         </p>
       )}
       {item.example && <p className="border-l-2 border-primary pl-3">{item.example}</p>}
+      {item.sourceConversationId && (
+        <Link
+          href={`/conversations/${item.sourceConversationId}/review`}
+          className="w-fit text-sm font-medium text-primary underline-offset-4 hover:underline"
+        >
+          Saved from a conversation review
+        </Link>
+      )}
     </article>
   );
 }

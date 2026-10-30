@@ -245,6 +245,88 @@ async function run(a: User, b: User) {
     check("Same-owner FK rejects B → A's scenario", crossFk.error?.code === "23503", crossFk.error);
   }
 
+  console.log("conversation review (M7)");
+  {
+    const conversation = await a.client.from("conversations").insert({}).select("id").single();
+    check("A can start a conversation", !conversation.error, conversation.error);
+    const conversationId = conversation.data?.id ?? "";
+    const message = await a.client
+      .from("messages")
+      .insert({ conversation_id: conversationId, role: "user", seq: 0, content: "I want ask a question." })
+      .select("id")
+      .single();
+    check("A can add a message while active", !message.error, message.error);
+    const ended = await a.client
+      .from("conversations")
+      .update({ status: "reviewing", ended_at: new Date().toISOString() })
+      .eq("id", conversationId)
+      .select("id");
+    check("A can end its conversation", !ended.error && ended.data?.length === 1, ended);
+
+    const completed = await a.client
+      .from("conversations")
+      .update({ status: "completed" })
+      .eq("id", conversationId);
+    check("A cannot mark it completed directly", DENIED.has(completed.error?.code ?? ""), completed.error);
+    const attempts = await a.client
+      .from("conversations")
+      .update({ review_attempts: 0 })
+      .eq("id", conversationId);
+    check("A cannot write review_attempts", DENIED.has(attempts.error?.code ?? ""), attempts.error);
+
+    const bClaim = await b.client.rpc("claim_conversation_review", { p_conversation_id: conversationId });
+    check("B cannot claim A's review", bClaim.error?.code === "P0002", bClaim.error ?? bClaim.data);
+    const aClaim = await a.client.rpc("claim_conversation_review", { p_conversation_id: conversationId });
+    check("A claims its review", aClaim.data === "claimed", aClaim.error ?? aClaim.data);
+
+    const review = {
+      model: "verify-rls",
+      summary: "Check run.",
+      overallLabel: "developing",
+      scores: { fluency: 60, naturalness: 60, grammar: 60, vocabulary: 60, confidence: 60 },
+      strengths: [],
+      corrections: [
+        {
+          messageId: message.data?.id,
+          original: "I want ask a question.",
+          improved: "I wanted to ask a question.",
+          category: "grammar",
+          subCategory: "tenses",
+          isGrammatical: false,
+          explanation: "Check run.",
+          saveableExpressions: [],
+        },
+      ],
+      targetItemsUsed: [],
+    };
+    const args = { p_conversation_id: conversationId, p_review: review };
+    const bApply = await b.client.rpc("apply_conversation_review", args);
+    check(
+      "B cannot apply a review to A's conversation",
+      bApply.error?.code === "P0002",
+      bApply.error ?? bApply.data,
+    );
+    const anonApply = await anon.rpc("apply_conversation_review", args);
+    check("anon cannot apply a review", Boolean(anonApply.error), anonApply.data);
+    const aApply = await a.client.rpc("apply_conversation_review", args);
+    check("A applies its review", aApply.data === true, aApply.error ?? aApply.data);
+    const replay = await a.client.rpc("apply_conversation_review", args);
+    check("Replaying the review is a no-op", replay.data === false, replay.error ?? replay.data);
+
+    const aCorrections = await a.client
+      .from("corrections")
+      .select("id")
+      .eq("conversation_id", conversationId);
+    check("A sees one correction", aCorrections.data?.length === 1, aCorrections);
+    const bFeedback = await b.client
+      .from("conversation_feedback")
+      .select("id")
+      .eq("conversation_id", conversationId);
+    check("B cannot see A's feedback", bFeedback.data?.length === 0, bFeedback);
+    const status = await a.client.from("conversations").select("status").eq("id", conversationId).single();
+    check("A's conversation is completed", status.data?.status === "completed", status);
+  }
+
   console.log("reference data");
   {
     const taxonomy = await a.client.from("gap_taxonomy").select("category, sub_category").limit(1);

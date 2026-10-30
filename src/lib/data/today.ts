@@ -2,6 +2,7 @@ import "server-only";
 
 import { z } from "zod";
 import type { Profile } from "@/lib/auth/dal";
+import { conversationHref } from "@/lib/domain/conversation";
 import { buildTodayPlan, rankGaps, type PlanGap, type Recommendation } from "@/lib/domain/recommendations";
 import { dayKey, summarizeStreak, type DayKey, type StreakSummary } from "@/lib/domain/streak";
 import { SCORE_DIMENSIONS, type ScoreDimension } from "@/lib/domain/taxonomy";
@@ -267,7 +268,7 @@ export async function getTodayData(
         status,
         at: c.completed_at ?? c.started_at,
         score: c.overall_score,
-        href: status === "completed" ? `/conversations/${c.id}/review` : `/conversations/${c.id}`,
+        href: conversationHref(c.id, status),
       };
     }),
     ...debriefs.slice(0, RECENT_LIMIT).map((d): ActivityItem => ({

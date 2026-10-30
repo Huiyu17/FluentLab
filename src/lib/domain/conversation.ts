@@ -2,6 +2,31 @@ import { z } from "zod";
 import { ENGLISH_LEVELS } from "@/lib/validation/profile";
 import { SCENARIO_CATEGORIES } from "@/lib/validation/scenario";
 
+export const CONVERSATION_STATUSES = [
+  "active",
+  "reviewing",
+  "completed",
+  "failed_review",
+  "abandoned",
+] as const;
+export type ConversationStatus = (typeof CONVERSATION_STATUSES)[number];
+
+/** How a status reads in lists (Today's recent activity, Conversation History). */
+export const CONVERSATION_STATUS_LABELS: Record<ConversationStatus, string> = {
+  active: "In progress",
+  reviewing: "Review in progress",
+  completed: "Reviewed",
+  failed_review: "Review didn't finish",
+  abandoned: "Ended early",
+};
+
+/** Where a conversation opens: its review once ended with something to review, else the chat. */
+export function conversationHref(id: string, status: ConversationStatus): string {
+  return status === "active" || status === "abandoned"
+    ? `/conversations/${id}`
+    : `/conversations/${id}/review`;
+}
+
 /** Longest learner message, in characters (docs/ARCHITECTURE.md → Conversation state). */
 export const MAX_MESSAGE_CHARS = 1000;
 /** Learner turns per conversation; the tutor wraps up when the cap is reached. */

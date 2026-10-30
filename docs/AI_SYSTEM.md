@@ -68,6 +68,17 @@ tutor when the conversation starts. Target gaps join the briefing in M8.
 separate grammar errors from naturalness issues; mark `isGrammatical`; pick at most 8 highest-value
 corrections; explain *why* in context; list expressions worth saving; detect which target items were
 used correctly; scores are relative indicators with brief rationale.
+Implemented in M7 (`prompts/reviewer.ts`, `reviewer-v1`; `services/reviewer.ts`): one `analysis` call per
+conversation (8192 output tokens, 90 s for both attempts). Learner turns are `<learner id="m1">`, partner turns
+`<partner>` (context only, no ids, so a correction can't target them), targets `<target id="t1">`. The model
+answers with these short refs, never database ids (`ReviewOutputSchema`); `resolveReview` maps them back and
+**drops** a correction whose ref is unknown, whose `original` isn't actually in that learner turn (compared
+lowercase, letters/digits only; the learner never sees words they didn't write) or whose `improved` changes
+nothing, and unknown/duplicate target refs. Corrections are sorted into transcript order. The prompt says
+"not selected" is not "correct": the review page never marks uncorrected turns as correct. Verified live
+2026-10-29 on `gemini-3.6-flash` (`npm run test:ai -- -t "live reviewer"`): grammar (`articles`,
+`isGrammatical=false`) and a too-direct request (`pragmatics/polite_requests`, `isGrammatical=true`) kept apart,
+target use detected, nothing dropped, ~11 s.
 
 **Gap extractor** — emits atomic events with taxonomy category/sub_category, original, suggestion,
 confidence. Also emits `good_usage` events (needed to mark gaps as improving). Only from user turns.
@@ -81,6 +92,8 @@ confidence. Also emits `good_usage` events (needed to mark gaps as improving). O
 ```ts
 const Score = z.number().int().min(0).max(100);
 
+// Shape stored by apply_conversation_review (ConversationReview in schemas/review.ts). The model itself
+// returns ReviewOutputSchema: the same fields with messageRef / targetRef instead of ids.
 ConversationReview = z.object({
   summary: z.string().max(600),
   overallLabel: z.enum(["needs_work", "developing", "good_communication", "strong"]),

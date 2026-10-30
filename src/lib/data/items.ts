@@ -27,6 +27,8 @@ export type ItemDetail = SavedItem & {
   card: StudioCard | null;
   /** Context for items added from the curated list. */
   curated: CuratedDetails | null;
+  /** The conversation whose review this item was saved from (source "review"). */
+  sourceConversationId: string | null;
 };
 
 export type CuratedExpression = {
@@ -101,7 +103,7 @@ export async function getSavedItem(userId: string, itemId: string): Promise<Item
   const { data, error } = await supabase
     .from("learning_items")
     .select(
-      `${LIST_COLUMNS}, native_meaning, example, source, interval_days, ease, last_reviewed_at, details`,
+      `${LIST_COLUMNS}, native_meaning, example, source, interval_days, ease, last_reviewed_at, details, source_conversation_id`,
     )
     .eq("user_id", userId)
     .eq("id", itemId)
@@ -123,6 +125,7 @@ export async function getSavedItem(userId: string, itemId: string): Promise<Item
     lastReviewedAt: data.last_reviewed_at,
     card: card?.success ? card.data : null,
     curated: curated?.success ? curated.data : null,
+    sourceConversationId: data.source === "review" ? data.source_conversation_id : null,
   };
 }
 

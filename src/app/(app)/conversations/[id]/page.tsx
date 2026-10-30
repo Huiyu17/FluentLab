@@ -1,7 +1,7 @@
 import { ArrowLeft, MessagesSquare, Target } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { ChatPanel } from "@/components/chat/chat-panel";
 import { EndConversationButton } from "@/components/chat/end-conversation-button";
@@ -40,6 +40,10 @@ async function ConversationPage({ params }: { params: PageProps<"/conversations/
   const { user } = await requireOnboardedUser(`/conversations/${id}`);
   const conversation = await getConversation(user.id, id);
   if (!conversation) notFound();
+  // Ended conversations live on their review page (which runs the review if needed).
+  if (conversation.status !== "active" && conversation.status !== "abandoned") {
+    redirect(`/conversations/${conversation.id}/review`);
+  }
   const scenario = conversation.scenario;
   const speaker = scenario ? speakerName(scenario.aiRole) : "Your partner";
   const active = conversation.status === "active";
@@ -127,8 +131,8 @@ async function ConversationPage({ params }: { params: PageProps<"/conversations/
             ))}
           </ol>
           <p role="status" className="rounded-lg bg-muted px-4 py-3 text-sm">
-            This conversation has ended. Your review (what you said, more natural alternatives and why)
-            arrives in the next update (M7).
+            This conversation ended before you wrote anything, so there&apos;s nothing to review. Start the
+            scenario again whenever you&apos;re ready.
           </p>
         </>
       )}

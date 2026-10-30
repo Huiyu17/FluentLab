@@ -169,7 +169,29 @@ All tables have RLS enabled. `anon` has no privileges on any app table (the app 
 
 ### Review application RPC (M7): `apply_conversation_review(conversation_id, review jsonb, events jsonb)`
 
-Contract fixed now so the schema supports it; implemented in M7/M8. See ARCHITECTURE.md → Conversation state.
+Implemented in M7 (migration 0700); `p_events` must be `[]` until M8 adds gap events. See ARCHITECTURE.md →
+Conversation state.
+
+- `security definer`, `set search_path = ''`, `execute` only for `authenticated`; identity from `auth.uid()`.
+  Another user's conversation raises `P0002` like a missing one.
+- Locks the conversation. `completed` → returns `false` and writes nothing (replay is a no-op); any status other
+  than `reviewing` raises `55000`.
+- One transaction: `conversation_feedback`, up to 8 `corrections` (position = array index; each must point at a
+  **learner** message of this conversation, else `22023`; taxonomy pairs via the composite FK), then
+  `conversation_targets.used_naturally` for target items. An item used naturally gets one `review_logs` row
+  (`mode = conversation`, rating `good`) and moves by the same SM-2 lite `good` rule as `record_item_review`;
+  the partial unique index makes that at most once per conversation. Items that weren't targets are ignored.
+- Finally `status = completed`, `completed_at`, and `overall_score` = rounded mean of the five indicators.
+
+`claim_conversation_review(conversation_id) returns text` (M7) starts a review attempt with the database clock:
+`failed_review`, an unclaimed `reviewing` (`review_started_at` null, e.g. ended in M6) or one started over 5
+minutes ago → sets `reviewing`, `review_started_at = now()`, `review_attempts + 1`, clears `review_error`, returns
+`claimed`. Otherwise returns `in_progress`, `completed`, `active` or `abandoned` without changes.
+
+**Client status guard (M7).** Trigger `conversations_guard_status` limits status changes made directly by
+`authenticated` to `active → reviewing` (End), `active → abandoned` and `reviewing → failed_review` (with
+`review_error`). `completed` and retries go through the RPCs above. `review_started_at` / `review_attempts`
+are no longer client-writable.
 
 ## Indexes
 

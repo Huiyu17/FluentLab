@@ -877,6 +877,14 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      apply_conversation_review: {
+        Args: { p_conversation_id: string; p_events?: Json; p_review: Json };
+        Returns: boolean;
+      };
+      claim_conversation_review: {
+        Args: { p_conversation_id: string };
+        Returns: string;
+      };
       consume_ai_quota: {
         Args: never;
         Returns: {

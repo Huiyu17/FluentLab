@@ -25,13 +25,14 @@ Key decisions:
 - **RLS is the authorization layer.** Server code uses the user-scoped Supabase client. The service-role
   client (`admin.ts`) is only for seeding scenarios and is never imported by user-facing code paths.
 - **AI behind interfaces.** Services depend on an `LLMProvider` interface (`generateText`, `streamText`,
-  `generateObject<T>(schema)`). Anthropic implementation first; OpenAI is a drop-in. A `mock` provider
+  `generateObject<T>(schema)`). Gemini implementation first (M6, free tier); others are drop-ins. A `mock` provider
   powers tests and keyless local dev.
 - **LLM proposes, code decides.** The LLM extracts language events; TypeScript aggregates them into gaps,
   computes severity, schedules reviews and ranks recommendations. This keeps the learner model
   explainable ("seen 9 times in the last 14 conversations").
-- **Post-processing is synchronous in V1.** "End conversation" runs review + event extraction in one
-  server action (~10–20 s) with a progress UI. If it gets slow, move to a queued job in V2.
+- **Post-processing is synchronous in V1.** "End conversation" ends the chat and opens the review page, which
+  runs review (+ event extraction from M8) in one server action (~10–40 s on the free tier) with a progress UI.
+  If it gets slow, move to a queued job in V2.
 
 ## Route structure
 
@@ -125,7 +126,8 @@ src/
     data/today.ts               server-only reads for the Today page (parallel queries under RLS)
     data/items.ts               saved items, item detail, curated list, due items for review
     data/scenarios.ts           shared catalog + own custom scenarios (never selects system_prompt)
-    data/conversations.ts       one conversation with messages (by seq) and target expressions
+    data/conversations.ts       one conversation with messages (by seq) and target expressions; history pages
+    data/reviews.ts             stored review (feedback + corrections), saved state of review expressions
     chat-protocol.ts            NDJSON chat events shared by the route handler and ChatPanel
     domain/conversation.ts      scenario snapshot, message/turn limits, speaker names
     scenarios.ts                scenario hrefs, category labels, catalog grouping
@@ -170,9 +172,13 @@ or `active → abandoned`.
    `conversation_targets` (saved items / gaps chosen for reuse), inserts the AI's opening line, redirects to chat.
 2. Turn: route handler validates input (≤ 1000 chars), checks ownership + `status = active`, enforces the turn
    cap (default 30 user turns), loads history, calls `tutor.reply` (streaming), persists both messages.
-3. End: server action moves `active|failed_review → reviewing` with a conditional update (claims the review;
-   if 0 rows change, another request already owns it), runs reviewer + extractor **outside** any transaction,
-   validates with Zod, then calls `apply_conversation_review` once.
+3. End: server action moves `active → reviewing` with a conditional update (or `abandoned` when the learner
+   never wrote anything) and redirects to `/conversations/[id]/review`. There `ReviewRunner` calls
+   `runReviewAction` (`src/lib/actions/conversation-review.ts`): `claim_conversation_review` (only one attempt
+   at a time; `failed_review`, unclaimed or > 5 min stale `reviewing` can be claimed), then the reviewer
+   **outside** any transaction, Zod validation, and `apply_conversation_review` once. A failure sets
+   `failed_review` + `review_error` (AI error code or `save_failed`); the page shows the reason and waits for
+   "Try again" rather than retrying on every visit. Ended conversations' chat URL redirects to the review.
 4. Reload-safe: state lives in the DB, not in client memory.
 
 ### Review idempotency (schema in M1, implemented in M7/M8)

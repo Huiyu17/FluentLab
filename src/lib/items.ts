@@ -12,6 +12,11 @@ export const ITEM_TYPE_LABELS: Record<ItemType, string> = {
   grammar: "Grammar",
 };
 
+/** Exact, case-insensitive match for ILIKE (the unique index is on lower(btrim(expression))). */
+export function likeExact(text: string): string {
+  return text.replace(/[\\%_]/g, (c) => `\\${c}`);
+}
+
 /** Words live under Vocabulary; everything else under Expressions. */
 export function itemHref(type: ItemType, id: string): string {
   return type === "word" ? `/vocabulary/${id}` : `/expressions/${id}`;

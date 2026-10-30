@@ -17,8 +17,9 @@ npm run dev        # http://localhost:3000
 ```
 
 The app runs without any configuration. Without Supabase variables it starts in **unconfigured mode**:
-every page of the shell renders and a banner explains that sign-in and data are unavailable. AI uses the
-`mock` provider until M6.
+every page of the shell renders and a banner explains that sign-in and data are unavailable. AI defaults to
+the `mock` provider (sample replies and reviews, clearly labelled); set `AI_PROVIDER=gemini` with a key and
+model ids in `.env.local` to use Gemini (see `.env.example`).
 
 To connect Supabase later, copy `.env.example` to `.env.local` and fill in the values.
 

@@ -2,20 +2,13 @@ import { MessagesSquare, NotebookPen } from "lucide-react";
 import Link from "next/link";
 import type { ActivityItem } from "@/lib/data/today";
 import { pastDay } from "@/lib/dates";
+import { CONVERSATION_STATUS_LABELS } from "@/lib/domain/conversation";
 import { cn } from "@/lib/utils";
 import { CardEmpty, DashboardCard } from "./dashboard-card";
 
-const CONVERSATION_STATUS: Record<Extract<ActivityItem, { kind: "conversation" }>["status"], string> = {
-  active: "In progress",
-  reviewing: "Review in progress",
-  completed: "Reviewed",
-  failed_review: "Review didn't finish",
-  abandoned: "Ended early",
-};
-
 function details(item: ActivityItem): string {
   if (item.kind === "debrief") return "Debrief";
-  const parts = [CONVERSATION_STATUS[item.status]];
+  const parts = [CONVERSATION_STATUS_LABELS[item.status]];
   if (item.score !== null) parts.push(`Score ${item.score}`);
   return parts.join(" · ");
 }

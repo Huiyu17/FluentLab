@@ -11,6 +11,7 @@ import { StudioCardSchema } from "@/lib/ai/schemas/studio";
 import { explainExpression } from "@/lib/ai/services/studio";
 import type { SaveItemState, StudioState } from "@/lib/actions/studio-state";
 import { getAuthState, getCurrentProfile, requireUser } from "@/lib/auth/dal";
+import { likeExact } from "@/lib/items";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/types";
 import { safeRedirectPath } from "@/lib/validation/redirect";
@@ -20,11 +21,6 @@ type Client = SupabaseClient<Database>;
 
 const SAVE_FAILED = "We couldn't save that. Please try again.";
 const NEEDS_ACCOUNT = "Saving needs an account: Supabase is not configured for this app.";
-
-/** Exact, case-insensitive match for ILIKE (the unique index is on lower(btrim(expression))). */
-function likeExact(text: string): string {
-  return text.replace(/[\\%_]/g, (c) => `\\${c}`);
-}
 
 async function findSavedItemId(supabase: Client, userId: string, expression: string) {
   const { data } = await supabase
