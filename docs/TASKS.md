@@ -268,6 +268,10 @@ migration that touches RLS or grants, apply it to the Supabase project and rerun
       `db:verify-rls`
 
 ## M12 — Vercel deployment + production Supabase
+- Decision 2026-11-03: a Preview-only deployment first, on the development Supabase project with Gemini's free
+  tier, sign-up closed and test accounts only; Production stays unconfigured until an independent database exists.
+  Steps in [docs/DEPLOYMENT.md](DEPLOYMENT.md).
+- [x] `preview` branch (Vercel Preview), Preview-scoped variables, `docs/DEPLOYMENT.md`
 - [ ] Custom SMTP for Supabase Auth (built-in email only reaches org members and is heavily rate-limited;
       templates can't be edited without it)
 - [ ] Switch "Confirm signup" and "Magic Link" templates to
