@@ -103,6 +103,12 @@ confidence. Also emits `good_usage` events (needed to mark gaps as improving). O
 **Studio** — the card format in PRODUCT.md, adapted to learner's native language for `nativeMeaning`.
 
 **Debrief** — 3–5 phrasings across registers, explanation, and a generated custom scenario spec.
+Implemented in M10 (`prompts/debrief.ts`, `debrief-v1`; `services/debrief.ts`; `DebriefResultSchema`): one
+`analysis` call (4096 output tokens, 60 s). The situation and what the learner said are escaped data in the user
+turn. Output: `situationSummary`, 3–5 `phrasings` (`casual` / `neutral` / `formal` + when to use), `explanation`,
+up to 3 `expressions`, and a `scenario` with the same limits as a custom scenario, so "Practice this situation"
+saves it after a `CustomScenarioSchema` check. Live check 2026-11-03 (returning a jacket without a receipt):
+three registers, the blunt original explained ("give money back" → "issue a refund"), a valid scenario, ~14 s.
 
 ## Schemas (src/lib/ai/schemas, Zod)
 

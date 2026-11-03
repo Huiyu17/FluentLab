@@ -29,6 +29,8 @@ export type ItemDetail = SavedItem & {
   curated: CuratedDetails | null;
   /** The conversation whose review this item was saved from (source "review"). */
   sourceConversationId: string | null;
+  /** The debrief this item was saved from (source "debrief"). */
+  sourceDebriefId: string | null;
   /** Conversations where the reviewer saw it used naturally (Reuse); counted, never stored. */
   timesUsed: number;
 };
@@ -106,7 +108,7 @@ export async function getSavedItem(userId: string, itemId: string): Promise<Item
     supabase
       .from("learning_items")
       .select(
-        `${LIST_COLUMNS}, native_meaning, example, source, interval_days, ease, last_reviewed_at, details, source_conversation_id`,
+        `${LIST_COLUMNS}, native_meaning, example, source, interval_days, ease, last_reviewed_at, details, source_conversation_id, source_debrief_id`,
       )
       .eq("user_id", userId)
       .eq("id", itemId)
@@ -137,6 +139,7 @@ export async function getSavedItem(userId: string, itemId: string): Promise<Item
     card: card?.success ? card.data : null,
     curated: curated?.success ? curated.data : null,
     sourceConversationId: data.source === "review" ? data.source_conversation_id : null,
+    sourceDebriefId: data.source === "debrief" ? data.source_debrief_id : null,
     timesUsed: used.count ?? 0,
   };
 }

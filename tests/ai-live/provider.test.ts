@@ -276,3 +276,29 @@ describe.skipIf(!live)("live focus gap (M9)", () => {
     expect(events.some((e) => e.subCategory === "polite_requests")).toBe(true);
   });
 });
+
+describe.skipIf(!live)("live debrief (M10)", () => {
+  it("gives phrasings across registers and a practice scenario that is a valid custom scenario", async () => {
+    const { coachDebrief } = await import("@/lib/ai/services/debrief");
+    const { CustomScenarioSchema } = await import("@/lib/validation/scenario");
+    const started = Date.now();
+    const { result } = await coachDebrief(
+      {
+        situation:
+          "At a clothing store I tried to return a jacket I bought last week. I lost the receipt but paid by card. The cashier looked annoyed and I got nervous.",
+        whatYouSaid: "I want return this jacket. I have no receipt. Can you give money back?",
+      },
+      {
+        learner: { englishLevel: "upper_intermediate", nativeLanguage: "Chinese (Mandarin)" },
+        consumeQuota: async () => {},
+      },
+    );
+    console.log(`DEBRIEF in ${Date.now() - started} ms: ${result.situationSummary}`);
+    for (const p of result.phrasings) console.log(`DEBRIEF phrasing [${p.register}] "${p.text}" (${p.note})`);
+    console.log(`DEBRIEF explanation: ${result.explanation}`);
+    console.log(`DEBRIEF expressions: ${JSON.stringify(result.expressions)}`);
+    console.log(`DEBRIEF scenario: ${JSON.stringify(result.scenario)}`);
+    expect(new Set(result.phrasings.map((p) => p.register)).size).toBeGreaterThanOrEqual(2);
+    expect(CustomScenarioSchema.safeParse(result.scenario).success).toBe(true);
+  });
+});

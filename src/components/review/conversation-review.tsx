@@ -5,7 +5,8 @@ import type { ConversationPattern, ConversationReviewView, ReviewCorrection } fr
 import { GapStatusBadge } from "@/components/gaps/gap-badges";
 import { CATEGORY_LABELS, SCORE_DIMENSIONS, type ScoreDimension } from "@/lib/domain/taxonomy";
 import { cn } from "@/lib/utils";
-import { SaveExpressionButton } from "./save-expression-button";
+import { saveReviewExpressionAction } from "@/lib/actions/conversation-review";
+import { SaveExpressionButton } from "@/components/shared/save-expression-button";
 
 export const OVERALL_LABEL_TEXT: Record<OverallLabel, string> = {
   needs_work: "Needs work",
@@ -110,8 +111,8 @@ export function ReviewSummary({
                   <span className="text-sm text-muted-foreground">{item.meaning}</span>
                 </div>
                 <SaveExpressionButton
-                  correctionId={item.correctionId}
-                  index={item.index}
+                  action={saveReviewExpressionAction}
+                  fields={{ correctionId: item.correctionId, index: String(item.index) }}
                   expression={item.expression}
                   savedItemId={item.savedItemId}
                 />

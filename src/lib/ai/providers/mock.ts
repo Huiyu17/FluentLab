@@ -1,4 +1,5 @@
 import { AIError } from "../errors";
+import { mockDebrief } from "../fixtures/debrief";
 import { mockReview } from "../fixtures/review";
 import { mockStudioCard } from "../fixtures/studio";
 import { readTagged } from "../prompts/data";
@@ -52,6 +53,8 @@ export const mockProvider: LLMProvider = {
       }
       case "conversation_review":
         return mockReview(request);
+      case "debrief":
+        return mockDebrief(request);
       default:
         throw new AIError("not_configured", `The mock provider has no fixture for "${req.name}".`);
     }

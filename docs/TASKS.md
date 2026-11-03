@@ -214,7 +214,28 @@ migration that touches RLS or grants, apply it to the Supabase project and rerun
 - [x] Step 6: manually checked by the learner on 2026-11-03 (Fluency Profile, Today → focused brief, Practice
       this); `npm audit` could not run (the configured npm registry mirror has no audit endpoint)
 
-## M10 — Real-Life Debrief
+## M10 — Real-Life Debrief ✅
+- Decision 2026-11-03: a debrief is saved only after the coach succeeds (no draft/failed rows); on failure the
+  form keeps the learner's text. No migration: `debriefs`, its RLS and the own-custom-scenario FK exist since M1.
+- [x] Step 1: `DebriefInputSchema` (2000-char limits), `DebriefResultSchema` (3–5 phrasings, explanation, ≤ 3
+      expressions, a scenario within custom-scenario limits), `debrief-v1` prompt (escaped data), `coachDebrief`,
+      mock fixture; unit tests (the mock scenario passes `CustomScenarioSchema`); live Gemini check (1 request)
+- [x] Step 2: `/debrief` — form (controlled fields submitted with startTransition, so text survives a failure;
+      character counts; one-AI-request note), list of past debriefs; `createDebriefAction` (validate → quota →
+      coach → save `result` + model → open it; nothing saved on failure); `data/debriefs.ts`; unit + component
+      tests; `test:e2e:live` debrief 1/1
+- [x] Step 3: `/debrief/[id]` — situation and what you said, phrasings grouped Casual / Neutral / Formal, why,
+      sample notice; "Add to My English" (`saveDebriefExpressionAction`: text read from the stored result, a phrasing
+      that uses it as the example, `source = debrief`); delete with confirm (saved items stay, link cleared); item
+      pages link back ("Saved from a real-life debrief"); `SaveExpressionButton` moved to shared and takes its
+      action; `test:e2e:live` debrief: show → save → reload → delete
+- [x] Step 4: "Practice this situation" (`practiceDebriefAction`): the coach's scenario passes `CustomScenarioSchema`
+      (a null opening line → blank), 50-scenario limit, saved as the learner's custom scenario and linked with a
+      conditional update (`scenario_id is null`; a losing double click deletes its copy and follows the winner);
+      "Open your practice scenario" afterwards; deleting the scenario clears the link (FK) and offers it again;
+      preview of the scenario on the result page; unit tests incl. the race; `test:e2e:live` debrief: practice →
+      brief → start conversation, one scenario only
+- [x] Step 5: manually checked by the learner on 2026-11-03 with Gemini (debrief → phrasings → save → practice)
 
 ## M11 — Testing + polish (golden-path E2E, a11y, empty/error states)
 

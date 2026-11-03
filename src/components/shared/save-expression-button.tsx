@@ -4,27 +4,28 @@ import { Check, Plus } from "lucide-react";
 import Link from "next/link";
 import { startTransition, useActionState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
-import { saveReviewExpressionAction } from "@/lib/actions/conversation-review";
-import { IDLE_SAVE_STATE } from "@/lib/actions/studio-state";
+import { IDLE_SAVE_STATE, type SaveItemState } from "@/lib/actions/studio-state";
 import { itemHref } from "@/lib/items";
 
 /**
- * "Add to My English" for one expression of a correction. Saved state comes from the server
- * (`savedItemId`), not the action result: page state survives navigations, so a copy deleted
- * elsewhere must not still show as saved. The action's refresh() updates it.
+ * "Add to My English" for one expression of a review correction or a debrief. `fields` only say
+ * which expression (an id and an index); the Server Action reads the text from the database.
+ * Saved state comes from the server (`savedItemId`), not the action result: page state survives
+ * navigations, so a copy deleted elsewhere must not still show as saved. The action's refresh()
+ * updates it.
  */
 export function SaveExpressionButton({
-  correctionId,
-  index,
+  action: saveAction,
+  fields,
   expression,
   savedItemId,
 }: {
-  correctionId: string;
-  index: number;
+  action: (prev: SaveItemState, formData: FormData) => Promise<SaveItemState>;
+  fields: Record<string, string>;
   expression: string;
   savedItemId: string | null;
 }) {
-  const [state, action, pending] = useActionState(saveReviewExpressionAction, IDLE_SAVE_STATE);
+  const [state, action, pending] = useActionState(saveAction, IDLE_SAVE_STATE);
 
   if (savedItemId) {
     return (
@@ -47,8 +48,9 @@ export function SaveExpressionButton({
 
   return (
     <form onSubmit={onSubmit} className="flex shrink-0 flex-col items-end gap-1">
-      <input type="hidden" name="correctionId" value={correctionId} />
-      <input type="hidden" name="index" value={index} />
+      {Object.entries(fields).map(([name, value]) => (
+        <input key={name} type="hidden" name={name} value={value} />
+      ))}
       {/* The label starts with the visible words so voice control ("click Add") still works. */}
       <Button
         type="submit"

@@ -27,6 +27,7 @@ const ITEM = {
   last_reviewed_at: null,
   details: {},
   source_conversation_id: "c1",
+  source_debrief_id: null,
 };
 
 function fake(usedCount: number) {

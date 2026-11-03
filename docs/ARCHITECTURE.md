@@ -131,6 +131,7 @@ src/
     data/gaps.ts                Gap Tracker list and one gap with its evidence (confidence ≥ 0.6); focus gap
                                 choice and last practice per gap (M9)
     data/profile.ts             Fluency Profile: indicator history from conversation_feedback, gap counts
+    data/debriefs.ts            the learner's debriefs (list, one with its validated result)
     chat-protocol.ts            NDJSON chat events shared by the route handler and ChatPanel
     domain/conversation.ts      scenario snapshot, message/turn limits, speaker names
     scenarios.ts                scenario hrefs, category labels, catalog grouping

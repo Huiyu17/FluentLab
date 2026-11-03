@@ -46,6 +46,14 @@ function PlainItem({ item, actions }: { item: ItemDetail; actions: ReactNode }) 
           Saved from a conversation review
         </Link>
       )}
+      {item.sourceDebriefId && (
+        <Link
+          href={`/debrief/${item.sourceDebriefId}`}
+          className="w-fit text-sm font-medium text-primary underline-offset-4 hover:underline"
+        >
+          Saved from a real-life debrief
+        </Link>
+      )}
     </article>
   );
 }
