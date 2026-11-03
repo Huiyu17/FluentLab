@@ -68,7 +68,13 @@ Implemented in M6 (`prompts/tutor.ts`, `tutor-v1`): the system prompt holds only
 scenario snapshot, learner profile and target expressions are escaped, tagged data in the **first user turn**
 (custom scenarios are learner-written), followed by the real conversation starting with the opening line. On the
 last allowed turn (30) the tutor is asked to close naturally. A scenario without an opening line gets one from the
-tutor when the conversation starts. Target gaps join the briefing in M8.
+tutor when the conversation starts. `tutor-v2` (M9) adds the focus gap as `<focus><skill>…</skill><description>…
+</description></focus>` data: the tutor steers the scene so the skill is needed once or twice, never naming it,
+hinting at it or testing it. `reviewer-v3` gets the same `<focus>` and records good_usage / negative events where
+the skill came up. Live check 2026-11-02 (coffee shop, "Polite requests"): the tutor never mentioned the skill and
+asked follow-up questions that need requests; the reviewer logged "Give me a latte…" as overly_direct (0.95) and
+"Sorry, could you…, please?" as good_usage (0.95). Note: events of one review share a timestamp, so a good usage in
+the same conversation as a mistake doesn't count towards "improving" (it needs to come after the last mistake).
 
 **Reviewer** — receives transcript with message ids, scenario goal, learner profile, target items. Must:
 separate grammar errors from naturalness issues; mark `isGrammatical`; pick at most 8 highest-value
@@ -201,3 +207,10 @@ sub-category (`GAP_DETAILS` in taxonomy.ts), never AI-written.
 V1 Today plan (≈ daily_goal_minutes): priority = severity weight × recency decay × (not practiced in 2 days).
 Output: 1 scenario targeting top gap, 1 review session if items are due, 1 Studio/Debrief suggestion.
 Each recommendation includes a human-readable reason ("Overly direct requests — seen 5× this week").
+
+Implemented in M9 (`gapPriority` / `rankGaps`): weight high 3 / medium 2 / low 1; recency halves every 14 days
+since the gap was last seen; a gap practiced in the last 2 days (a completed conversation that targeted it,
+derived from `conversation_targets` on every read, never stored) is multiplied by 0.25 rather than removed, and
+improving gaps by 0.5. Ties: more evidence, then most recently seen, then id. Only active and improving gaps are
+planned. `pickScenario` (learner's contexts, not the last 3 practiced, rotating by day) also serves "Practice
+this".

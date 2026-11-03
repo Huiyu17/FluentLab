@@ -80,6 +80,11 @@ async function ConversationPage({ params }: { params: PageProps<"/conversations/
             </span>
           </p>
         )}
+        {conversation.focusGap && (
+          <p className="text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">Focus:</span> {conversation.focusGap.title}
+          </p>
+        )}
         {conversation.targets.length > 0 && (
           <p className="text-sm text-muted-foreground">
             <span className="font-medium text-foreground">Try to use:</span>{" "}

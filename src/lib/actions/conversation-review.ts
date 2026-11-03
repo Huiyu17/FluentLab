@@ -69,6 +69,7 @@ export async function runReviewAction(conversationId: unknown): Promise<RunRevie
           nativeLanguage: profile?.nativeLanguage ?? null,
         },
         targets: conversation.targets,
+        focus: conversation.focusGap,
         messages: conversation.messages.map(({ id: messageId, role, content }) => ({
           id: messageId,
           role,

@@ -9,6 +9,10 @@ import { PageSkeleton } from "@/components/shared/skeletons";
 import { EmptyState } from "@/components/shared/states";
 import { getAuthState, requireOnboardedUser } from "@/lib/auth/dal";
 import { getGap, type GapEvidence } from "@/lib/data/gaps";
+import { listScenarios } from "@/lib/data/scenarios";
+import { pickScenario } from "@/lib/domain/recommendations";
+import { dayKey } from "@/lib/domain/streak";
+import { Button } from "@/components/ui/button";
 import { pastDay } from "@/lib/dates";
 
 export const metadata: Metadata = { title: "Gap" };
@@ -74,10 +78,22 @@ async function GapPage({ params }: { params: PageProps<"/gaps/[id]">["params"] }
   }
 
   const { user, profile } = await requireOnboardedUser(`/gaps/${id}`);
-  const gap = await getGap(user.id, id);
+  const [gap, scenarios] = await Promise.all([getGap(user.id, id), listScenarios(user.id)]);
   if (!gap) notFound();
   const now = new Date();
   const tz = profile.timezone;
+  // "Practice this": a shared scenario from the learner's contexts, with this gap as its focus.
+  const practice =
+    gap.status === "active" || gap.status === "improving"
+      ? pickScenario({
+          contexts: profile.contexts,
+          scenarios: (scenarios?.shared ?? []).flatMap((s) =>
+            s.slug ? [{ slug: s.slug, title: s.title, category: s.category, estMinutes: s.estMinutes }] : [],
+          ),
+          recentScenarioSlugs: [],
+          today: dayKey(now, tz),
+        })
+      : null;
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
@@ -98,7 +114,14 @@ async function GapPage({ params }: { params: PageProps<"/gaps/[id]">["params"] }
               {gap.status !== "dismissed" && <SeverityBadge severity={gap.severity} />}
             </div>
           </div>
-          <GapActions gapId={gap.id} title={gap.title} dismissed={gap.status === "dismissed"} />
+          <div className="flex flex-wrap items-center gap-2">
+            {practice && (
+              <Button asChild size="sm">
+                <Link href={`/simulator/${practice.slug}?gap=${gap.id}`}>Practice this</Link>
+              </Button>
+            )}
+            <GapActions gapId={gap.id} title={gap.title} dismissed={gap.status === "dismissed"} />
+          </div>
         </div>
         <p className="leading-relaxed">{gap.description}</p>
         <dl className="grid gap-3 text-sm sm:grid-cols-3">

@@ -8,6 +8,7 @@ import { tutorOpening } from "@/lib/ai/services/tutor";
 import type { StartConversationState } from "@/lib/actions/conversation-state";
 import { getCurrentProfile, requireUser } from "@/lib/auth/dal";
 import { listSavedItems } from "@/lib/data/items";
+import { chooseFocusGap } from "@/lib/data/gaps";
 import { getCustomScenario, getSharedScenario } from "@/lib/data/scenarios";
 import { toScenarioSnapshot } from "@/lib/domain/conversation";
 import { pickTargetItems } from "@/lib/domain/targets";
@@ -33,7 +34,8 @@ const SourceSchema = z.union([
 
 /**
  * Starts (or resumes) a conversation: snapshot of the scenario, target expressions from
- * My English, and the opening line as message 0. The opening line is settled first, so an AI
+ * My English, the gap to practice (the requested `gapId` if it is the learner's and open, else the
+ * top-ranked one; M9), and the opening line as message 0. The opening line is settled first, so an AI
  * failure leaves nothing behind; a later write failure deletes the half-made conversation.
  */
 export async function startConversationAction(
@@ -50,6 +52,8 @@ export async function startConversationAction(
       : `/simulator/custom/${source.success && "scenarioId" in source.data ? source.data.scenarioId : ""}`;
   const user = await requireUser(back);
   if (!source.success) return START_FAILED;
+  // Optional and only a preference: chooseFocusGap checks it belongs to the learner and is open.
+  const requestedGap = z.uuid().safeParse(formData.get("gapId"));
 
   const supabase = await createClient();
   if (!supabase)
@@ -78,7 +82,11 @@ export async function startConversationAction(
   }
   if (active) redirect(`/conversations/${active.id}`);
 
-  const [profile, items] = await Promise.all([getCurrentProfile(), listSavedItems(user.id)]);
+  const [profile, items, focusGap] = await Promise.all([
+    getCurrentProfile(),
+    listSavedItems(user.id),
+    chooseFocusGap(user.id, requestedGap.success ? requestedGap.data : null),
+  ]);
   const targets = pickTargetItems(items ?? [], new Date());
   const snapshot = toScenarioSnapshot(scenario);
 
@@ -93,6 +101,7 @@ export async function startConversationAction(
             nativeLanguage: profile?.nativeLanguage ?? null,
           },
           targets: targets.map((t) => ({ expression: t.expression, meaning: t.meaning })),
+          focus: focusGap,
         },
         { consumeQuota: () => consumeAiQuota(supabase) },
       );
@@ -115,11 +124,13 @@ export async function startConversationAction(
     return START_FAILED;
   }
 
+  const targetRows = [
+    ...targets.map((t) => ({ conversation_id: conversation.id, user_id: user.id, item_id: t.id })),
+    ...(focusGap ? [{ conversation_id: conversation.id, user_id: user.id, gap_id: focusGap.id }] : []),
+  ];
   const [targetsResult, messageResult] = await Promise.all([
-    targets.length > 0
-      ? supabase
-          .from("conversation_targets")
-          .insert(targets.map((t) => ({ conversation_id: conversation.id, user_id: user.id, item_id: t.id })))
+    targetRows.length > 0
+      ? supabase.from("conversation_targets").insert(targetRows)
       : Promise.resolve({ error: null }),
     supabase.from("messages").insert({
       conversation_id: conversation.id,

@@ -56,9 +56,10 @@ const CONVERSATION: Conversation = {
     { id: "m1", role: "user", content: "Hi professor.", seq: 1, createdAt: "" },
   ],
   targets: [{ itemId: "item-1", expression: "walk me through", meaning: "explain step by step" }],
+  focusGap: null,
 };
 
-const REVIEW = { model: "mock/reviewer-v2", summary: "ok", corrections: [], targetItemsUsed: [] };
+const REVIEW = { model: "mock/reviewer-v3", summary: "ok", corrections: [], targetItemsUsed: [] };
 
 const EVENTS = [
   {

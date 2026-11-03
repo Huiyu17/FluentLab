@@ -16,7 +16,7 @@ function fake(results: Record<string, unknown>) {
     const query = { table, calls: [] as Call[] };
     queries.push(query);
     const builder: Record<string, unknown> = {};
-    for (const m of ["select", "eq", "neq", "gte", "in", "order", "limit", "maybeSingle"]) {
+    for (const m of ["select", "eq", "neq", "gte", "in", "not", "order", "limit", "maybeSingle"]) {
       builder[m] = (...args: unknown[]) => {
         query.calls.push([m, ...args]);
         return builder;
@@ -133,5 +133,69 @@ describe("getGap", () => {
     createClient.mockResolvedValue(fake({ language_gaps: null, language_events: [] }).client);
     expect(await getGap(USER_ID, GAP_ID)).toBeNull();
     expect(await getGap(USER_ID, "nope")).toBeNull();
+  });
+});
+
+describe("latestPractice", () => {
+  it("keeps each gap's latest completed targeting conversation, ignoring unfinished ones", async () => {
+    const { latestPractice } = await import("@/lib/data/gaps");
+    const practice = latestPractice([
+      { gap_id: "g1", conversations: { status: "completed", completed_at: "2026-10-20T10:00:00Z" } },
+      { gap_id: "g1", conversations: { status: "completed", completed_at: "2026-10-27T10:00:00Z" } },
+      { gap_id: "g1", conversations: { status: "active", completed_at: null } },
+      { gap_id: "g2", conversations: { status: "reviewing", completed_at: null } },
+      { gap_id: null, conversations: { status: "completed", completed_at: "2026-10-28T10:00:00Z" } },
+      { gap_id: "g3", conversations: null },
+    ]);
+    expect([...practice]).toEqual([["g1", "2026-10-27T10:00:00Z"]]);
+  });
+});
+
+describe("chooseFocusGap", () => {
+  const NOW = new Date("2026-10-29T12:00:00Z");
+  const row = (id: string, overrides: Record<string, unknown> = {}) =>
+    gapRow({
+      id,
+      title: id,
+      last_detected_at: "2026-10-28T12:00:00Z",
+      created_at: "2026-10-20T00:00:00Z",
+      ...overrides,
+    });
+
+  it("uses the requested gap when it is one of the learner's open gaps", async () => {
+    const { chooseFocusGap } = await import("@/lib/data/gaps");
+    const f = fake({
+      language_gaps: [row("top", { severity: "high" }), row("asked")],
+      conversation_targets: [],
+    });
+    createClient.mockResolvedValue(f.client);
+    expect(await chooseFocusGap(USER_ID, "asked", NOW)).toEqual({
+      id: "asked",
+      title: "asked",
+      description: "Using a, an, the.",
+    });
+    const gaps = f.queries.find((q) => q.table === "language_gaps")!;
+    expect(gaps.calls).toContainEqual(["in", "status", ["active", "improving"]]);
+    expect(gaps.calls).toContainEqual(["eq", "user_id", USER_ID]);
+  });
+
+  it("falls back to the top-ranked open gap (an unknown, dismissed or someone else's id isn't in the list)", async () => {
+    const { chooseFocusGap } = await import("@/lib/data/gaps");
+    createClient.mockResolvedValue(
+      fake({
+        language_gaps: [row("medium"), row("high", { severity: "high" })],
+        conversation_targets: [
+          // "high" was practiced an hour ago, so it drops below "medium".
+          { gap_id: "high", conversations: { status: "completed", completed_at: "2026-10-29T11:00:00Z" } },
+        ],
+      }).client,
+    );
+    expect((await chooseFocusGap(USER_ID, "elsewhere", NOW))?.id).toBe("medium");
+  });
+
+  it("returns null without open gaps", async () => {
+    const { chooseFocusGap } = await import("@/lib/data/gaps");
+    createClient.mockResolvedValue(fake({ language_gaps: [], conversation_targets: [] }).client);
+    expect(await chooseFocusGap(USER_ID, null, NOW)).toBeNull();
   });
 });

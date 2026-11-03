@@ -94,6 +94,14 @@ describe("buildReviewerRequest", () => {
     expect(content.match(/<\/transcript>/g)).toHaveLength(1);
   });
 
+  it("tells the reviewer which gap was practiced", () => {
+    const focus = { title: "Polite requests", description: "Requests can sound too direct." };
+    const { system, messages } = buildReviewerRequest(input({ focus }));
+    expect(system).not.toContain("Polite requests");
+    expect(messages[0]!.content).toContain("<focus>\n<skill>Polite requests</skill>");
+    expect(buildReviewerRequest(input()).messages[0]!.content).toContain("<focus>\nnone\n</focus>");
+  });
+
   it("gives refs to learner turns and targets only", () => {
     const { messages, messageRefs, targetRefs } = buildReviewerRequest(input());
     expect([...messageRefs.entries()].map(([ref, m]) => [ref, m.id])).toEqual([
@@ -160,7 +168,7 @@ describe("resolveReview", () => {
         ],
       }),
       refs(),
-      "mock/reviewer-v2",
+      "mock/reviewer-v3",
     );
     expect(dropped).toBe(5);
     expect(review.corrections.map((c) => [c.messageId, c.original])).toEqual([
@@ -283,7 +291,7 @@ describe("reviewConversation", () => {
     expect(consumeQuota).toHaveBeenCalledTimes(1);
     expect(result.sample).toBe(true);
     expect(result.dropped).toBe(0);
-    expect(result.review.model).toBe("mock/reviewer-v2");
+    expect(result.review.model).toBe("mock/reviewer-v3");
     expect(result.review.summary).toMatch(/sample/i);
     // One sample correction on the first learner turn; the learner typed "walk me through".
     expect(result.review.corrections.map((c) => c.messageId)).toEqual([IDS.user1]);
@@ -321,7 +329,7 @@ describe("reviewConversation", () => {
     const provider: LLMProvider = { ...mockProvider, name: "gemini", generateJson };
     const result = await reviewConversation(input(), { consumeQuota: async () => {}, provider });
     expect(result.sample).toBe(false);
-    expect(result.review.model).toBe("gemini/reviewer-v2");
+    expect(result.review.model).toBe("gemini/reviewer-v3");
     expect(generateJson).toHaveBeenCalledWith(
       expect.objectContaining({ task: "analysis", name: "conversation_review", maxTokens: 8192 }),
     );

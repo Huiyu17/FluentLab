@@ -7,7 +7,16 @@ import { startConversationAction } from "@/lib/actions/conversation";
 import { IDLE_START_STATE } from "@/lib/actions/conversation-state";
 
 /** Starts (or resumes) the conversation and lands in the chat. */
-export function StartConversationButton({ slug, scenarioId }: { slug: string | null; scenarioId: string }) {
+export function StartConversationButton({
+  slug,
+  scenarioId,
+  gapId = null,
+}: {
+  slug: string | null;
+  scenarioId: string;
+  /** The focus gap shown on the brief, so what starts is what the learner saw. */
+  gapId?: string | null;
+}) {
   const [state, action, pending] = useActionState(startConversationAction, IDLE_START_STATE);
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -23,6 +32,7 @@ export function StartConversationButton({ slug, scenarioId }: { slug: string | n
       ) : (
         <input type="hidden" name="scenarioId" value={scenarioId} />
       )}
+      {gapId && <input type="hidden" name="gapId" value={gapId} />}
       <Button type="submit" disabled={pending}>
         <MessagesSquare aria-hidden />
         {pending ? "Starting…" : "Start conversation"}

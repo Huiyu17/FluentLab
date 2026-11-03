@@ -80,6 +80,26 @@ describe("ScenarioBrief", () => {
     expect(container.querySelector("input[name=slug]")).toBeNull();
   });
 
+  it("shows the focus gap and starts the conversation with it", () => {
+    const { container } = render(
+      <ScenarioBrief
+        scenario={SCENARIO}
+        targets={[]}
+        focusGap={{ id: "g1", title: "Polite requests", description: "Requests can sound too direct." }}
+      />,
+    );
+    const focus = screen.getByRole("region", { name: "Focus: Polite requests" });
+    expect(focus).toHaveTextContent("Requests can sound too direct.");
+    expect(screen.getByRole("link", { name: "Gap Tracker" })).toHaveAttribute("href", "/gaps/g1");
+    expect(container.querySelector('input[name="gapId"]')).toHaveAttribute("value", "g1");
+  });
+
+  it("has no focus section or gapId without an open gap", () => {
+    const { container } = render(<ScenarioBrief scenario={SCENARIO} targets={[]} />);
+    expect(screen.queryByRole("region", { name: /Focus/ })).toBeNull();
+    expect(container.querySelector('input[name="gapId"]')).toBeNull();
+  });
+
   it("renders owner actions when given", () => {
     render(<ScenarioBrief scenario={SCENARIO} targets={[]} actions={<button>Edit</button>} />);
     expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();

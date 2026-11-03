@@ -51,6 +51,7 @@ function conversation(messages: ConversationMessage[], overrides: Partial<Conver
     reviewError: null,
     messages,
     targets: [],
+    focusGap: null,
     ...overrides,
   };
 }

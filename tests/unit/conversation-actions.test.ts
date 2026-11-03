@@ -30,6 +30,10 @@ vi.mock("@/lib/data/scenarios", () => ({
   getSharedScenario: (slug: string) => scenarios.getSharedScenario(slug),
   getCustomScenario: (userId: string, id: string) => scenarios.getCustomScenario(userId, id),
 }));
+const chooseFocusGap = vi.fn();
+vi.mock("@/lib/data/gaps", () => ({
+  chooseFocusGap: (userId: string, requested: string | null) => chooseFocusGap(userId, requested),
+}));
 const createClient = vi.fn();
 vi.mock("@/lib/supabase/server", () => ({ createClient: () => createClient() }));
 
@@ -148,6 +152,7 @@ beforeEach(() => {
   listSavedItems.mockReset().mockResolvedValue(ITEMS);
   scenarios.getSharedScenario.mockReset().mockResolvedValue(SCENARIO);
   scenarios.getCustomScenario.mockReset().mockResolvedValue(null);
+  chooseFocusGap.mockReset().mockResolvedValue(null);
   createClient.mockReset();
 });
 afterEach(() => vi.restoreAllMocks());
@@ -188,6 +193,32 @@ describe("startConversationAction", () => {
     });
     // The scenario had an opening line: no AI call, no quota spent.
     expect(fake.rpc).not.toHaveBeenCalled();
+  });
+
+  it("targets the focus gap: the requested one when valid, chosen and checked server-side", async () => {
+    const GAP_ID = "7b8c9d0e-1f2a-4b3c-8d4e-5f6a7b8c9d0e";
+    chooseFocusGap.mockResolvedValue({ id: GAP_ID, title: "Polite requests", description: "" });
+    const fake = fakeSupabase(happyPath);
+    createClient.mockResolvedValue(fake.client);
+
+    await redirectTarget(
+      startConversationAction(IDLE_START_STATE, form({ slug: "office-hours", gapId: GAP_ID })),
+    );
+    expect(chooseFocusGap).toHaveBeenCalledWith(USER_ID, GAP_ID);
+    const rows = arg(find(fake.queries, "conversation_targets", "insert"), "insert") as Record<
+      string,
+      unknown
+    >[];
+    expect(rows.at(-1)).toEqual({ conversation_id: CONVERSATION_ID, user_id: USER_ID, gap_id: GAP_ID });
+    expect(rows.filter((r) => "item_id" in r)).toHaveLength(rows.length - 1);
+
+    // A malformed gapId is not a request at all: the top-ranked gap is used instead.
+    chooseFocusGap.mockClear();
+    createClient.mockResolvedValue(fakeSupabase(happyPath).client);
+    await redirectTarget(
+      startConversationAction(IDLE_START_STATE, form({ slug: "office-hours", gapId: "nope" })),
+    );
+    expect(chooseFocusGap).toHaveBeenCalledWith(USER_ID, null);
   });
 
   it("asks the tutor for an opening line (spending quota) when the scenario has none", async () => {

@@ -6,7 +6,7 @@ import { admin, setupLiveUser, signIn } from "./helpers";
 
 const liveUser = setupLiveUser();
 
-test("a reviewed conversation's gap appears in the Gap Tracker and can be dismissed and restored", async ({
+test("a reviewed conversation's gap appears in the Gap Tracker, can be dismissed, restored and practiced", async ({
   page,
 }) => {
   await signIn(page, liveUser());
@@ -68,4 +68,31 @@ test("a reviewed conversation's gap appears in the Gap Tracker and can be dismis
     .eq("user_id", liveUser().id)
     .single();
   expect(restored?.status).toBe("active");
+
+  // "Practice this" opens a scenario brief focused on the gap; starting stores the gap as a target.
+  await page.getByRole("link", { name: "Practice this" }).click();
+  await expect(page).toHaveURL(/\/simulator\/[a-z0-9-]+\?gap=[0-9a-f-]{36}$/);
+  await expect(page.getByRole("region", { name: "Focus: Word choice" })).toBeVisible();
+  await page.getByRole("button", { name: "Start conversation" }).click();
+  await expect(page).toHaveURL(/\/conversations\/[0-9a-f-]{36}$/);
+  await expect(page.getByText("Focus:", { exact: true })).toBeVisible();
+  const practiceId = page.url().split("/").at(-1)!;
+  const { data: targets } = await admin!
+    .from("conversation_targets")
+    .select("gap_id")
+    .eq("conversation_id", practiceId)
+    .not("gap_id", "is", null);
+  expect(targets).toEqual([{ gap_id: await gapId() }]);
+
+  // Today's plan suggests practicing the same gap and links to a brief focused on it.
+  await page.goto("/today");
+  const plan = page.getByRole("region", { name: "Today's plan" });
+  await expect(plan).toContainText('Practice "Word choice": seen 1× in 1 conversation.');
+  await plan.locator(`a[href*="?gap=${await gapId()}"]`).click();
+  await expect(page.getByRole("region", { name: "Focus: Word choice" })).toBeVisible();
 });
+
+async function gapId(): Promise<string> {
+  const { data } = await admin!.from("language_gaps").select("id").eq("user_id", liveUser().id).single();
+  return data!.id;
+}

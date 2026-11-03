@@ -31,7 +31,7 @@ export type ConversationReviewView = {
   overallLabel: OverallLabel;
   scores: { fluency: number; naturalness: number; grammar: number; vocabulary: number; confidence: number };
   strengths: string[];
-  /** e.g. "mock/reviewer-v2": the UI labels mock reviews as samples. */
+  /** e.g. "mock/reviewer-v3": the UI labels mock reviews as samples. */
   model: string | null;
   corrections: ReviewCorrection[];
 };

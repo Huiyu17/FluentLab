@@ -1,6 +1,7 @@
-import { ArrowLeft, Clock, MessageCircle, Target, User, Users } from "lucide-react";
+import { ArrowLeft, Clock, Crosshair, MessageCircle, Target, User, Users } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import type { FocusGap } from "@/lib/data/gaps";
 import type { SavedItem } from "@/lib/data/items";
 import type { Scenario } from "@/lib/data/scenarios";
 import { itemHref } from "@/lib/items";
@@ -26,10 +27,13 @@ function Block({ icon, title, children }: { icon: ReactNode; title: string; chil
 export function ScenarioBrief({
   scenario,
   targets,
+  focusGap = null,
   actions,
 }: {
   scenario: Scenario;
   targets: SavedItem[];
+  /** The gap this conversation will practice (M9), if the learner has an open one. */
+  focusGap?: FocusGap | null;
   /** Owner controls for custom scenarios (edit, delete). */
   actions?: ReactNode;
 }) {
@@ -82,6 +86,29 @@ export function ScenarioBrief({
         <p className="text-lg">{scenario.goal}</p>
       </section>
 
+      {focusGap && (
+        <section aria-labelledby="focus-title" className="flex flex-col gap-2 rounded-2xl border bg-card p-5">
+          <h2
+            id="focus-title"
+            className="flex items-center gap-2 text-sm font-semibold tracking-wide text-muted-foreground uppercase"
+          >
+            <Crosshair aria-hidden className="size-4 text-primary" />
+            Focus: {focusGap.title}
+          </h2>
+          <p className="text-sm">{focusGap.description}</p>
+          <p className="text-sm text-muted-foreground">
+            From your{" "}
+            <Link
+              href={`/gaps/${focusGap.id}`}
+              className="font-medium text-primary underline-offset-4 hover:underline"
+            >
+              Gap Tracker
+            </Link>
+            . Your partner will give you natural chances to practice it, without mentioning it.
+          </p>
+        </section>
+      )}
+
       <Block icon={<MessageCircle className="size-4" />} title="How it starts">
         {scenario.openingLine ? (
           <blockquote className="border-l-2 border-primary pl-3 italic">
@@ -133,7 +160,11 @@ export function ScenarioBrief({
           finish.
         </p>
         <div className="shrink-0">
-          <StartConversationButton slug={scenario.isCustom ? null : scenario.slug} scenarioId={scenario.id} />
+          <StartConversationButton
+            slug={scenario.isCustom ? null : scenario.slug}
+            scenarioId={scenario.id}
+            gapId={focusGap?.id ?? null}
+          />
         </div>
       </div>
     </div>

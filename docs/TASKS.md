@@ -189,7 +189,30 @@ migration that touches RLS or grants, apply it to the Supabase project and rerun
       clock, so ~1 s of skew made an item added a moment ago look not due (`test:e2e:live` My English failed once).
       `isDue` / `dueCutoff` in `src/lib/items.ts` now count items due within 60 s as due, used everywhere
 
-## M9 — Recommendations + Reuse (targets in scenarios, Today plan, Fluency Profile charts)
+## M9 — Recommendations + Reuse (targets in scenarios, Today plan, Fluency Profile charts) ✅
+- Decision 2026-11-02: every new conversation targets the top-ranked open gap automatically ("Practice this" on a
+  gap picks that one instead), shown as "Focus" on the brief; the tutor creates chances without naming it.
+- No migration needed: gap targets (`conversation_targets.gap_id`) and "3 targeted conversations → improving"
+  exist since M1/M8.
+- [x] Step 1: `gapPriority` / `rankGaps` (severity × 14-day half-life × 0.25 if practiced in the last 2 days, × 0.5
+      if improving), exported `pickScenario`; last practice derived per gap (`lastPracticedByGap`, completed
+      targeting conversations); Today uses it; unit tests
+- [x] Step 2: gap targets — `chooseFocusGap` (requested `?gap=` / `gapId` if the learner's and open, else top
+      ranked), `startConversationAction` stores it in `conversation_targets` (resumes add nothing), "Focus" on
+      the brief and in the chat header, "Practice this" on active/improving gaps (`pickScenario`);
+      `test:e2e:live` gaps: Practice this → focused brief → start → gap target stored
+- [x] Step 3: `tutor-v2` (focus gap as escaped data; create chances, never name it) and `reviewer-v3` (looks for the
+      focus skill), passed from the chat route, the opening line and the review; unit tests; live Gemini check (3
+      requests): no mention of the skill, overly_direct + good_usage recorded for "Polite requests"
+- [x] Step 4: Today's conversation recommendation links to `?gap=` (focused brief) with "seen N× in M
+      conversations"; item detail shows "Used in conversations" (count of `used_naturally` targets, not stored);
+      `test:e2e:live` gaps: Today plan → focused brief
+- [x] Step 5: Fluency Profile (`/profile`) — recharts 3.10.1 + react-is 19.3.0 (pinned, released ≥ 2 weeks before);
+      small multiples per indicator (shared 0–100 scale, hover tooltip), latest value and trend (last 3 reviews vs
+      earlier, "steady" under 2 points, needs 4 reviews), table view, gap counts, empty state under 2 reviews;
+      `domain/indicators.ts`, `data/profile.ts`; `test:e2e:live` profile 1/1 (screenshot checked)
+- [x] Step 6: manually checked by the learner on 2026-11-03 (Fluency Profile, Today → focused brief, Practice
+      this); `npm audit` could not run (the configured npm registry mirror has no audit endpoint)
 
 ## M10 — Real-Life Debrief
 

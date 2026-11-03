@@ -199,3 +199,80 @@ describe.skipIf(!live)("live reviewer", () => {
     expect(review.corrections.length).toBeGreaterThan(0);
   });
 });
+
+describe.skipIf(!live)("live focus gap (M9)", () => {
+  it("creates chances for the focus skill without naming it, and the reviewer looks for it", async () => {
+    const { tutorOpening, tutorReply } = await import("@/lib/ai/services/tutor");
+    const { reviewConversation } = await import("@/lib/ai/services/reviewer");
+    const scenario = {
+      scenarioId: null,
+      slug: "coffee-shop-order",
+      isCustom: false,
+      category: "everyday" as const,
+      title: "Ordering at a Busy Coffee Shop",
+      description: "The line is long and the barista is in a hurry. You want something a bit unusual.",
+      userRole: "A customer who wants an oat-milk latte with less ice",
+      aiRole: "Sam, the barista",
+      aiPersonality: "Fast, friendly, a little rushed",
+      goal: "Get exactly the drink you want without holding up the line.",
+      difficulty: "intermediate" as const,
+      openingLine: null,
+      estMinutes: 5,
+    };
+    const focus = {
+      title: "Polite requests",
+      description: 'Requests can sound too direct, like an order. Softeners such as "Could you…?" help.',
+    };
+    const learner = { englishLevel: "upper_intermediate" as const, nativeLanguage: "Chinese (Mandarin)" };
+    const noQuota = async () => {};
+
+    const opening = await tutorOpening({ scenario, learner, targets: [], focus }, { consumeQuota: noQuota });
+    const learnerTurn = "Give me a latte. Oat milk. Less ice.";
+    let reply = "";
+    for await (const part of tutorReply(
+      {
+        scenario,
+        learner,
+        targets: [],
+        focus,
+        history: [
+          { role: "assistant", content: opening },
+          { role: "user", content: learnerTurn },
+        ],
+      },
+      { consumeQuota: noQuota },
+    )) {
+      reply += part;
+    }
+    console.log(`FOCUS opening: ${opening}`);
+    console.log(`FOCUS reply: ${reply}`);
+    expect(`${opening} ${reply}`.toLowerCase()).not.toMatch(/polite request|softener|practic/);
+
+    const { events, review } = await reviewConversation(
+      {
+        scenario,
+        learner,
+        targets: [],
+        focus,
+        messages: [
+          { id: "10000000-0000-4000-8000-000000000000", role: "assistant", content: opening },
+          { id: "10000000-0000-4000-8000-000000000001", role: "user", content: learnerTurn },
+          { id: "10000000-0000-4000-8000-000000000002", role: "assistant", content: reply },
+          {
+            id: "10000000-0000-4000-8000-000000000003",
+            role: "user",
+            content: "Sorry, could you make it a bit less sweet, please?",
+          },
+        ],
+      },
+      { consumeQuota: noQuota },
+    );
+    console.log(`FOCUS review summary: ${review.summary}`);
+    for (const e of events) {
+      console.log(
+        `FOCUS event [${e.eventType} ${e.category}/${e.subCategory} conf=${e.confidence}] "${e.original}"`,
+      );
+    }
+    expect(events.some((e) => e.subCategory === "polite_requests")).toBe(true);
+  });
+});

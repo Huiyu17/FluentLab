@@ -9,7 +9,7 @@ import {
   type EventType,
   type GapStatus,
 } from "@/lib/domain/gaps";
-import type { GapSeverity } from "@/lib/domain/recommendations";
+import { pickFocusGap, type GapSeverity } from "@/lib/domain/recommendations";
 import { createClient } from "@/lib/supabase/server";
 
 export type GapSummary = {
@@ -172,4 +172,91 @@ export async function getGap(userId: string, gapId: string): Promise<GapDetail |
     evidence: evidence.filter((e) => e.eventType !== "good_usage").slice(0, GAP_EVIDENCE_LIMIT),
     goodUsages: evidence.filter((e) => e.eventType === "good_usage").slice(0, GAP_EVIDENCE_LIMIT),
   };
+}
+
+type Client = NonNullable<Awaited<ReturnType<typeof createClient>>>;
+
+/**
+ * When each gap was last practiced: the latest completion of a conversation that targeted it.
+ * Derived from conversation_targets on every read (no stored counter; docs/DATABASE.md rule 2).
+ */
+export async function lastPracticedByGap(supabase: Client, userId: string): Promise<Map<string, string>> {
+  const { data, error } = await supabase
+    .from("conversation_targets")
+    .select("gap_id, conversations(status, completed_at)")
+    .eq("user_id", userId)
+    .not("gap_id", "is", null)
+    .limit(1000);
+  if (error) fail("gap practice", error);
+  return latestPractice(data ?? []);
+}
+
+/** Pure part of lastPracticedByGap (exported for tests). */
+export function latestPractice(
+  rows: readonly {
+    gap_id: string | null;
+    conversations: { status: string; completed_at: string | null } | null;
+  }[],
+): Map<string, string> {
+  const latest = new Map<string, string>();
+  for (const row of rows) {
+    const completedAt = row.conversations?.status === "completed" ? row.conversations.completed_at : null;
+    if (!row.gap_id || !completedAt) continue;
+    const current = latest.get(row.gap_id);
+    if (!current || new Date(completedAt) > new Date(current)) latest.set(row.gap_id, completedAt);
+  }
+  return latest;
+}
+
+/** The gap a conversation practices, as shown on the brief and in the chat header. */
+export type FocusGap = { id: string; title: string; description: string };
+
+/** Gaps a conversation can practice: active or improving (emerging ones are hidden, the rest are done). */
+const PRACTICE_STATUSES = ["active", "improving"] as const;
+
+/**
+ * The gap a new conversation should practice (M9, decision A): the requested one if it is the
+ * learner's and still open, otherwise the top-ranked open gap (`rankGaps`). Null when there is
+ * none, or Supabase is not configured. Ownership comes from RLS and the user_id filter.
+ */
+export async function chooseFocusGap(
+  userId: string,
+  requestedId: string | null,
+  now: Date = new Date(),
+): Promise<FocusGap | null> {
+  const supabase = await createClient();
+  if (!supabase) return null;
+  const [gaps, practiced] = await Promise.all([
+    supabase
+      .from("language_gaps")
+      .select(
+        "id, title, description, status, severity, evidence_count, conversations_count, last_detected_at, created_at",
+      )
+      .eq("user_id", userId)
+      .in("status", [...PRACTICE_STATUSES]),
+    lastPracticedByGap(supabase, userId),
+  ]);
+  if (gaps.error) fail("practice gaps", gaps.error);
+
+  const StatusSchema = z.enum(PRACTICE_STATUSES);
+  const open = (gaps.data ?? []).flatMap((row) => {
+    const status = StatusSchema.safeParse(row.status);
+    const severity = SeveritySchema.safeParse(row.severity);
+    if (!status.success || !severity.success) return [];
+    return [
+      {
+        id: row.id,
+        title: row.title,
+        description: row.description,
+        status: status.data,
+        severity: severity.data,
+        evidenceCount: row.evidence_count,
+        conversationsCount: row.conversations_count,
+        lastDetectedAt: row.last_detected_at ?? row.created_at,
+        lastPracticedAt: practiced.get(row.id) ?? null,
+      },
+    ];
+  });
+  const chosen = open.find((g) => g.id === requestedId) ?? pickFocusGap(open, now);
+  return chosen ? { id: chosen.id, title: chosen.title, description: chosen.description } : null;
 }

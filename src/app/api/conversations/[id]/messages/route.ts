@@ -127,6 +127,7 @@ export async function POST(request: Request, ctx: RouteContext<"/api/conversatio
         nativeLanguage: profile?.nativeLanguage ?? null,
       },
       targets: conversation.targets.map((t) => ({ expression: t.expression, meaning: t.meaning })),
+      focus: conversation.focusGap,
       history: history.map((m) => ({ role: m.role, content: m.content })),
       finalTurn: userTurns >= MAX_USER_TURNS,
     },

@@ -3,6 +3,7 @@ import "server-only";
 import { z } from "zod";
 import type { Profile } from "@/lib/auth/dal";
 import { conversationHref } from "@/lib/domain/conversation";
+import { lastPracticedByGap } from "@/lib/data/gaps";
 import { dueCutoff } from "@/lib/items";
 import { buildTodayPlan, rankGaps, type PlanGap, type Recommendation } from "@/lib/domain/recommendations";
 import { dayKey, summarizeStreak, type DayKey, type StreakSummary } from "@/lib/domain/streak";
@@ -138,6 +139,7 @@ export async function getTodayData(
     completedResult,
     reviewLogsResult,
     feedbackResult,
+    lastPracticed,
   ] = await Promise.all([
     supabase
       .from("learning_items")
@@ -196,6 +198,7 @@ export async function getTodayData(
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(1),
+    lastPracticedByGap(supabase, userId),
   ]);
 
   const dueCount = count("due reviews", dueResult);
@@ -216,10 +219,11 @@ export async function getTodayData(
         evidenceCount: gap.evidence_count,
         conversationsCount: gap.conversations_count,
         lastDetectedAt: gap.last_detected_at ?? gap.created_at,
+        lastPracticedAt: lastPracticed.get(gap.id) ?? null,
       },
     ];
   });
-  const rankedGaps = rankGaps(gaps);
+  const rankedGaps = rankGaps(gaps, now);
 
   const scenarios = unwrap("scenarios", scenariosResult).flatMap((row) => {
     const parsed = ScenarioRowSchema.safeParse(row);
@@ -246,6 +250,7 @@ export async function getTodayData(
     scenarios,
     recentScenarioSlugs: conversations.flatMap((c) => (c.scenarios?.slug ? [c.scenarios.slug] : [])),
     today,
+    now,
   });
 
   const streak = summarizeStreak(

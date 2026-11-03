@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { EmptyState } from "@/components/shared/states";
 import { getAuthState, requireOnboardedUser } from "@/lib/auth/dal";
+import { chooseFocusGap } from "@/lib/data/gaps";
 import { listSavedItems } from "@/lib/data/items";
 import { getCustomScenario, getSharedScenario, type Scenario } from "@/lib/data/scenarios";
 import { pickTargetItems } from "@/lib/domain/targets";
@@ -16,9 +17,12 @@ type Source = { kind: "shared"; slug: string } | { kind: "custom"; id: string };
  */
 export async function BriefPage({
   source,
+  gapId = null,
   actions,
 }: {
   source: Source;
+  /** `?gap=` from "Practice this" (validated again when the conversation starts). */
+  gapId?: string | null;
   actions?: (scenario: Scenario) => ReactNode;
 }) {
   const auth = await getAuthState();
@@ -34,12 +38,15 @@ export async function BriefPage({
 
   const path = source.kind === "shared" ? `/simulator/${source.slug}` : `/simulator/custom/${source.id}`;
   const { user } = await requireOnboardedUser(path);
-  const [scenario, items] = await Promise.all([
+  const [scenario, items, focusGap] = await Promise.all([
     source.kind === "shared" ? getSharedScenario(source.slug) : getCustomScenario(user.id, source.id),
     listSavedItems(user.id),
+    chooseFocusGap(user.id, gapId),
   ]);
   if (!scenario) notFound();
 
   const targets = pickTargetItems(items ?? [], new Date());
-  return <ScenarioBrief scenario={scenario} targets={targets} actions={actions?.(scenario)} />;
+  return (
+    <ScenarioBrief scenario={scenario} targets={targets} focusGap={focusGap} actions={actions?.(scenario)} />
+  );
 }

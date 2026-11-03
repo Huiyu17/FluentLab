@@ -119,7 +119,7 @@ src/
     domain/
       gaps.ts                   event → gap aggregation, severity, status transitions
       scheduling.ts             spaced repetition (SM-2 lite)
-      recommendations.ts        Today plan (M3: rule-based; M8: severity × recency ranking)
+      recommendations.ts        Today plan (M3: rule-based; M9: severity × recency × not-recently-practiced ranking)
       streak.ts                 practice streak + last 7 days, in the learner's time zone
       targets.ts                which saved items a conversation targets (due first, then least mastered)
       taxonomy.ts               gap category/subcategory constants
@@ -128,7 +128,9 @@ src/
     data/scenarios.ts           shared catalog + own custom scenarios (never selects system_prompt)
     data/conversations.ts       one conversation with messages (by seq) and target expressions; history pages
     data/reviews.ts             stored review (feedback + corrections), saved state of review expressions
-    data/gaps.ts                Gap Tracker list and one gap with its evidence (confidence ≥ 0.6)
+    data/gaps.ts                Gap Tracker list and one gap with its evidence (confidence ≥ 0.6); focus gap
+                                choice and last practice per gap (M9)
+    data/profile.ts             Fluency Profile: indicator history from conversation_feedback, gap counts
     chat-protocol.ts            NDJSON chat events shared by the route handler and ChatPanel
     domain/conversation.ts      scenario snapshot, message/turn limits, speaker names
     scenarios.ts                scenario hrefs, category labels, catalog grouping
@@ -170,7 +172,9 @@ docs/
 or `active → abandoned`.
 
 1. Start: server action creates the `conversations` row with a scenario snapshot, inserts
-   `conversation_targets` (saved items / gaps chosen for reuse), inserts the AI's opening line, redirects to chat.
+   `conversation_targets` (up to 3 saved items from `domain/targets.ts` and, since M9, one focus gap from
+   `chooseFocusGap`: the requested one if open, else the top-ranked), inserts the AI's opening line, redirects to
+   chat.
 2. Turn: route handler validates input (≤ 1000 chars), checks ownership + `status = active`, enforces the turn
    cap (default 30 user turns), loads history, calls `tutor.reply` (streaming), persists both messages.
 3. End: server action moves `active → reviewing` with a conditional update (or `abandoned` when the learner

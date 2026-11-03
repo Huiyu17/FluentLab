@@ -54,6 +54,7 @@ const FULL: TodayData = {
       evidenceCount: 5,
       conversationsCount: 3,
       lastDetectedAt: "2026-10-27T10:00:00Z",
+      lastPracticedAt: null,
     },
     {
       id: "g2",
@@ -64,6 +65,7 @@ const FULL: TodayData = {
       evidenceCount: 1,
       conversationsCount: 1,
       lastDetectedAt: "2026-10-20T10:00:00Z",
+      lastPracticedAt: null,
     },
   ],
   openGapCount: 4,

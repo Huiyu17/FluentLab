@@ -29,6 +29,8 @@ export type ItemDetail = SavedItem & {
   curated: CuratedDetails | null;
   /** The conversation whose review this item was saved from (source "review"). */
   sourceConversationId: string | null;
+  /** Conversations where the reviewer saw it used naturally (Reuse); counted, never stored. */
+  timesUsed: number;
 };
 
 export type CuratedExpression = {
@@ -100,15 +102,24 @@ export async function getSavedItem(userId: string, itemId: string): Promise<Item
   if (!z.uuid().safeParse(itemId).success) return null;
   const supabase = await createClient();
   if (!supabase) return null;
-  const { data, error } = await supabase
-    .from("learning_items")
-    .select(
-      `${LIST_COLUMNS}, native_meaning, example, source, interval_days, ease, last_reviewed_at, details, source_conversation_id`,
-    )
-    .eq("user_id", userId)
-    .eq("id", itemId)
-    .maybeSingle();
+  const [{ data, error }, used] = await Promise.all([
+    supabase
+      .from("learning_items")
+      .select(
+        `${LIST_COLUMNS}, native_meaning, example, source, interval_days, ease, last_reviewed_at, details, source_conversation_id`,
+      )
+      .eq("user_id", userId)
+      .eq("id", itemId)
+      .maybeSingle(),
+    supabase
+      .from("conversation_targets")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("item_id", itemId)
+      .eq("used_naturally", true),
+  ]);
   if (error) fail("saved item", error);
+  if (used.error) fail("item usage", used.error);
   if (!data) return null;
   const item = toSavedItem(data);
   if (!item) return null;
@@ -126,6 +137,7 @@ export async function getSavedItem(userId: string, itemId: string): Promise<Item
     card: card?.success ? card.data : null,
     curated: curated?.success ? curated.data : null,
     sourceConversationId: data.source === "review" ? data.source_conversation_id : null,
+    timesUsed: used.count ?? 0,
   };
 }
 

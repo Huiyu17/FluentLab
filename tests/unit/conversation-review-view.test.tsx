@@ -48,7 +48,7 @@ const REVIEW: ConversationReviewView = {
   overallLabel: "developing",
   scores: { fluency: 65, naturalness: 60, grammar: 55, vocabulary: 65, confidence: 70 },
   strengths: ["Clear question"],
-  model: "gemini/reviewer-v2",
+  model: "gemini/reviewer-v3",
   corrections: [CORRECTION],
 };
 

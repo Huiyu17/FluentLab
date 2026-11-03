@@ -23,6 +23,9 @@ export type ConversationMessage = {
 
 export type ConversationTarget = { itemId: string; expression: string; meaning: string };
 
+/** The gap this conversation practices (M9), with its fixed title and description. */
+export type ConversationFocusGap = { id: string; title: string; description: string };
+
 export type Conversation = {
   id: string;
   status: ConversationStatus;
@@ -34,6 +37,7 @@ export type Conversation = {
   reviewError: string | null;
   messages: ConversationMessage[];
   targets: ConversationTarget[];
+  focusGap: ConversationFocusGap | null;
 };
 
 const StatusSchema = z.enum(CONVERSATION_STATUSES);
@@ -53,7 +57,7 @@ export async function getConversation(userId: string, id: string): Promise<Conve
   const supabase = await createClient();
   if (!supabase) return null;
 
-  const [conversation, messages, targets] = await Promise.all([
+  const [conversation, messages, targets, gapTargets] = await Promise.all([
     supabase
       .from("conversations")
       .select("id, status, scenario_snapshot, started_at, ended_at, review_error")
@@ -72,10 +76,18 @@ export async function getConversation(userId: string, id: string): Promise<Conve
       .eq("user_id", userId)
       .eq("conversation_id", id)
       .not("item_id", "is", null),
+    supabase
+      .from("conversation_targets")
+      .select("gap_id, language_gaps(id, title, description)")
+      .eq("user_id", userId)
+      .eq("conversation_id", id)
+      .not("gap_id", "is", null)
+      .limit(1),
   ]);
   if (conversation.error) fail("conversation", conversation.error);
   if (messages.error) fail("messages", messages.error);
   if (targets.error) fail("conversation targets", targets.error);
+  if (gapTargets.error) fail("conversation focus", gapTargets.error);
   if (!conversation.data) return null;
 
   const snapshot = ScenarioSnapshotSchema.safeParse(conversation.data.scenario_snapshot);
@@ -97,6 +109,7 @@ export async function getConversation(userId: string, id: string): Promise<Conve
         ? [{ itemId: t.item_id, expression: t.learning_items.expression, meaning: t.learning_items.meaning }]
         : [],
     ),
+    focusGap: gapTargets.data?.[0]?.language_gaps ?? null,
   };
 }
 

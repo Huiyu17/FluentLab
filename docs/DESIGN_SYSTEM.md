@@ -57,6 +57,10 @@ Dark mode: deferred (V2).
 - **Chat:** not a generic chatbot. Scenario brief pinned at top (role, goal), messages as calm bubbles,
   AI speaker name ("Professor Lee") instead of "Assistant", clear "End conversation" button.
 - **Indicators:** small ring or bar + number; always captioned "AI-estimated learning indicators".
+- **Indicator trends (Fluency Profile, M9):** small multiples, one single-series line per indicator on a shared
+  0–100 scale, in `--primary` (4.99:1 on white). The `--chart-1..5` tokens fail a categorical palette check
+  (three read as gray, coral/green ΔE 6.2 under protan), so no chart relies on them for series identity. Hover
+  tooltip per point, 2px line, 8px markers with a surface ring, a table view under the charts.
 - **Gap card:** title, plain-language description, severity chip, "Seen 5× in 3 conversations", example
   before → after, "Practice this" button.
 - **Empty states:** friendly line + one action. Simple line illustrations or emoji, no stock art.

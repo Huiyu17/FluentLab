@@ -25,7 +25,7 @@ function fakeSupabase(respond: (query: Query) => Result) {
     const query: Query = { table, calls: [] };
     queries.push(query);
     const builder: Record<string, unknown> = {};
-    for (const method of ["select", "eq", "in", "lte", "gt", "gte", "order", "limit"]) {
+    for (const method of ["select", "eq", "in", "not", "lte", "gt", "gte", "order", "limit"]) {
       builder[method] = (...args: unknown[]) => {
         query.calls.push([method, ...args]);
         return builder;
@@ -190,6 +190,16 @@ describe("getTodayData", () => {
               },
             ],
           };
+        case "conversation_targets":
+          // "medium" was practiced 3 days ago: recorded, but too long ago to lower its priority.
+          return {
+            data: [
+              {
+                gap_id: "medium",
+                conversations: { status: "completed", completed_at: "2026-10-25T10:00:00Z" },
+              },
+            ],
+          };
         default:
           throw new Error(`Unexpected table ${query.table}`);
       }
@@ -204,12 +214,13 @@ describe("getTodayData", () => {
     expect(data.openGapCount).toBe(4);
     expect(data.focusGaps.map((g) => g.id)).toEqual(["high", "medium", "medium-old"]);
     expect(data.focusGaps[2]?.lastDetectedAt).toBe("2026-10-20T10:00:00Z");
+    expect(data.focusGaps.map((g) => g.lastPracticedAt)).toEqual([null, "2026-10-25T10:00:00Z", null]);
 
     expect(data.plan.map((r) => r.kind)).toEqual(["conversation", "review", "studio"]);
     const conversation = data.plan[0];
     expect(conversation).toMatchObject({
       gapId: "high",
-      reason: 'Practice "Overly direct requests": seen 5× in your conversations.',
+      reason: 'Practice "Overly direct requests": seen 5× in 1 conversation.',
     });
     // Office Hours was just practiced, so the other campus scenario comes up.
     expect(conversation).toMatchObject({ scenarioSlug: "after-class-small-talk" });

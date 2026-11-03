@@ -59,7 +59,7 @@ function Progress({ item, now, timeZone }: { item: ItemDetail; now: Date; timeZo
       <h2 id="progress-title" className="text-lg font-semibold">
         Your progress
       </h2>
-      <dl className="grid gap-4 sm:grid-cols-3">
+      <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="flex flex-col gap-1">
           <dt className="text-sm text-muted-foreground">Mastery</dt>
           <dd>
@@ -82,7 +82,19 @@ function Progress({ item, now, timeZone }: { item: ItemDetail; now: Date; timeZo
             )}
           </dd>
         </div>
+        <div className="flex flex-col gap-1">
+          <dt className="text-sm text-muted-foreground">Used in conversations</dt>
+          <dd className="font-medium">
+            {item.timesUsed === 0
+              ? "Not yet"
+              : `${item.timesUsed} ${item.timesUsed === 1 ? "time" : "times"}, naturally`}
+          </dd>
+        </div>
       </dl>
+      <p className="text-xs text-muted-foreground">
+        Saved expressions come up as things to try in your conversations; using one naturally counts as a
+        review.
+      </p>
     </section>
   );
 }
