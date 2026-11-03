@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { expectNoA11yViolations } from "../a11y";
+import { expectNoA11yViolations, expectNoHorizontalOverflow } from "../a11y";
 
 // axe (WCAG 2.1 A/AA) on every page in unconfigured mode: the public pages and each sidebar
 // section, on desktop and mobile (playwright.config.ts projects). Pages with data are scanned in
@@ -29,6 +29,7 @@ for (const path of PAGES) {
     await page.goto(path);
     await expect(page.locator("h1").first()).toBeVisible();
     await expectNoA11yViolations(page, path);
+    await expectNoHorizontalOverflow(page, path);
   });
 }
 

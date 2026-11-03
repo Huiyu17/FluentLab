@@ -141,7 +141,7 @@ async function Profile() {
         CEFR level, and a single conversation can move them a lot.
       </p>
 
-      <ul aria-label="Indicators" className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <ul aria-label="Indicators" className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {SCORE_DIMENSIONS.map((dimension) => {
           const values = points.map((p) => p.scores[dimension]);
           const trend = indicatorTrend(values);

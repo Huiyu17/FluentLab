@@ -272,6 +272,12 @@ migration that touches RLS or grants, apply it to the Supabase project and rerun
   tier, sign-up closed and test accounts only; Production stays unconfigured until an independent database exists.
   Steps in [docs/DEPLOYMENT.md](DEPLOYMENT.md).
 - [x] `preview` branch (Vercel Preview), Preview-scoped variables, `docs/DEPLOYMENT.md`
+- [x] Preview checked read-only (pages, auth redirect, security headers, noindex, no keys in client JS). Mobile bug
+      found on the phone: Today was 724px wide at 390px (single-column grids without `grid-cols-1` grow to the
+      widest unbreakable content, a truncated activity title). Added `grid-cols-1` (minmax(0, 1fr)) to all 13 such
+      grids; `expectNoHorizontalOverflow` (390px; content in its own scroll container is fine) now runs on every
+      CI page and on Today, review, Gap Tracker, My English, history, Profile and debrief in the live suite;
+      verified it fails without the fix
 - [ ] Custom SMTP for Supabase Auth (built-in email only reaches org members and is heavily rate-limited;
       templates can't be edited without it)
 - [ ] Switch "Confirm signup" and "Magic Link" templates to

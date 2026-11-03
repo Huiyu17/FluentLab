@@ -43,7 +43,7 @@ export default function LandingPage() {
           <h2 id="loop-heading" className="text-xl font-semibold">
             How it works
           </h2>
-          <ol className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <ol className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
             {LOOP.map((item, i) => (
               <li key={item.step} className="flex flex-col gap-2 rounded-2xl border bg-card p-5">
                 <span className="text-sm font-medium text-primary">

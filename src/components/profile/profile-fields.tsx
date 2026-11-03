@@ -181,7 +181,7 @@ export function ContextsField({
       description="Pick all that apply. We'll suggest scenarios from these."
       error={error}
     >
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {LEARNING_CONTEXTS.map((context) => (
           <label key={context} className={cn(choiceLabel, "flex flex-col gap-0.5 rounded-xl px-4 py-3")}>
             <input

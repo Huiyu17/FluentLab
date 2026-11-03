@@ -60,7 +60,7 @@ function AddCurated({ item }: { item: CuratedExpression }) {
 /** Hand-picked expressions every learner can add in one click. */
 export function CuratedList({ items }: { items: CuratedExpression[] }) {
   return (
-    <ul className="grid gap-3 md:grid-cols-2">
+    <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
       {items.map((item) => (
         <li key={item.id} className="flex flex-col gap-3 rounded-2xl border bg-card p-5">
           <div className="flex items-start justify-between gap-3">

@@ -34,7 +34,7 @@ export function ScenarioCard({ scenario }: { scenario: Scenario }) {
 
 export function ScenarioGrid({ scenarios }: { scenarios: Scenario[] }) {
   return (
-    <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {scenarios.map((scenario) => (
         <li key={scenario.id}>
           <ScenarioCard scenario={scenario} />

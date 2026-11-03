@@ -65,7 +65,7 @@ export function ReviewSummary({
       <p className="leading-relaxed">{review.summary}</p>
 
       <div className="flex flex-col gap-3">
-        <dl className="grid gap-3 sm:grid-cols-5">
+        <dl className="grid grid-cols-1 gap-3 sm:grid-cols-5">
           {SCORE_DIMENSIONS.map((dimension) => {
             const score = review.scores[dimension];
             return (

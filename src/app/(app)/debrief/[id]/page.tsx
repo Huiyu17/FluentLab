@@ -135,7 +135,7 @@ async function DebriefPage({ params }: { params: PageProps<"/debrief/[id]">["par
           </h2>
           <p className="text-sm">Replay this situation in the simulator, so the words are ready next time.</p>
         </div>
-        <dl className="grid gap-2 text-sm sm:grid-cols-2">
+        <dl className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
           <div className="sm:col-span-2">
             <dt className="text-muted-foreground">Scenario</dt>
             <dd className="font-medium">{result.scenario.title}</dd>

@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
-import { expectNoA11yViolations } from "../a11y";
+import { expectNoA11yViolations, expectNoHorizontalOverflow } from "../a11y";
 import { admin } from "./helpers";
 
 // The V1 golden path (docs/PRODUCT.md → Key user flow, ARCHITECTURE.md → Testing strategy), in one
@@ -101,6 +101,7 @@ test("the V1 golden path: onboarding → practice → review → gap → focused
   await expect(transcript.locator(":scope > li").nth(1)).toContainText("More natural");
   await expect(transcript.locator(":scope > li").nth(3)).toContainText("No suggestions");
   await expectNoA11yViolations(page, "review");
+  await expectNoHorizontalOverflow(page, "review");
   await page.getByRole("button", { name: "Add to My English: Would you mind…?" }).click();
   await expect(page.getByRole("link", { name: "In My English: Would you mind…?" })).toBeVisible();
 
@@ -109,9 +110,18 @@ test("the V1 golden path: onboarding → practice → review → gap → focused
   await expect(patterns.getByRole("link", { name: /Word choice/ })).toContainText("Focus area");
   await page.goto("/gaps");
   await expectNoA11yViolations(page, "gap tracker");
+  await expectNoHorizontalOverflow(page, "gap tracker");
   await expect(
     page.getByRole("region", { name: /Focus areas/ }).getByRole("link", { name: /Word choice/ }),
   ).toBeVisible();
+
+  // A debrief with a long situation, so Recent activity has a long (truncated) title on a phone.
+  const { error: debriefError } = await admin!.from("debriefs").insert({
+    user_id: userId,
+    situation:
+      "I emailed my TA to ask for an extension on the problem set and got no reply, then I saw her after class and didn't know how to bring it up.",
+  });
+  expect(debriefError).toBeNull();
 
   // Today now recommends practicing that gap, and the link opens a brief focused on it.
   await page.goto("/today");
@@ -119,6 +129,7 @@ test("the V1 golden path: onboarding → practice → review → gap → focused
   await expect(plan).toContainText('Practice "Word choice": seen 1× in 1 conversation.');
   await expect(page.getByRole("region", { name: "Focus areas" })).toContainText("Word choice");
   await expectNoA11yViolations(page, "today (with a gap)");
+  await expectNoHorizontalOverflow(page, "today (with a gap)");
   await plan.locator('a[href*="?gap="]').click();
   await expect(page.getByRole("region", { name: "Focus: Word choice" })).toBeVisible();
   await expectNoA11yViolations(page, "focused brief");
@@ -132,9 +143,11 @@ test("the V1 golden path: onboarding → practice → review → gap → focused
   await page.goto("/my-english");
   await expect(page.getByRole("link", { name: /Would you mind…\?/ })).toBeVisible();
   await expectNoA11yViolations(page, "my english");
+  await expectNoHorizontalOverflow(page, "my english");
   await page.goto("/conversations");
   await expect(page.getByRole("list", { name: "Conversations" })).toContainText("Reviewed");
   await expectNoA11yViolations(page, "conversation history");
+  await expectNoHorizontalOverflow(page, "conversation history");
 
   // The profile the learner filled in during onboarding was saved.
   const { data: profile } = await admin!

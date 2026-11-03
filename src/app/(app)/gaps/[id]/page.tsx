@@ -124,7 +124,7 @@ async function GapPage({ params }: { params: PageProps<"/gaps/[id]">["params"] }
           </div>
         </div>
         <p className="leading-relaxed">{gap.description}</p>
-        <dl className="grid gap-3 text-sm sm:grid-cols-3">
+        <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
           <div>
             <dt className="text-muted-foreground">Seen</dt>
             <dd className="font-medium">

@@ -26,7 +26,9 @@ export function TodayDashboard({
         title={name ? `${greeting(now, timeZone)}, ${name}` : greeting(now, timeZone)}
         description={longDate(now, timeZone)}
       />
-      <div className="grid gap-6 lg:grid-cols-3">
+      {/* grid-cols-1 = minmax(0, 1fr): without it the single mobile column grows to the widest
+          unbreakable content (a truncated activity title) and every card overflows the screen. */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <PlanCard
           plan={data.plan}
           planMinutes={data.planMinutes}
@@ -51,7 +53,7 @@ export function TodaySkeleton() {
         <Skeleton className="h-10 w-72 max-w-full rounded-lg" />
         <Skeleton className="h-5 w-48 rounded-lg" />
       </div>
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Skeleton className="h-80 rounded-2xl lg:col-span-2" />
         <Skeleton className="h-80 rounded-2xl" />
         <Skeleton className="h-56 rounded-2xl" />

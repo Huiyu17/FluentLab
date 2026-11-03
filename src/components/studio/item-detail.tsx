@@ -67,7 +67,7 @@ function Progress({ item, now, timeZone }: { item: ItemDetail; now: Date; timeZo
       <h2 id="progress-title" className="text-lg font-semibold">
         Your progress
       </h2>
-      <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="flex flex-col gap-1">
           <dt className="text-sm text-muted-foreground">Mastery</dt>
           <dd>
