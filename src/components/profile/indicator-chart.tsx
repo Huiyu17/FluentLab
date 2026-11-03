@@ -40,7 +40,9 @@ export function IndicatorChart({ label, points }: { label: string; points: Chart
   return (
     <div aria-hidden className="h-32 w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+        {/* No keyboard layer: the chart is aria-hidden, and a focusable element inside it would be a
+            stop screen readers can't announce. The page's table is the accessible version. */}
+        <LineChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} accessibilityLayer={false}>
           <CartesianGrid vertical={false} stroke="var(--color-border)" strokeDasharray="3 3" />
           <XAxis
             dataKey="index"

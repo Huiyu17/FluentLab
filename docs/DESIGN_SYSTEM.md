@@ -17,15 +17,21 @@ gamified noise (confetti, XP bars).
 | `--muted` | `#F2EFEA` | subtle fills, sidebar |
 | `--border` | `#E7E2DA` | hairlines |
 | `--foreground` | `#1F1D1A` | text |
-| `--muted-foreground` | `#6E6A63` | secondary text |
-| `--primary` | `#2F7D5B` soft green | primary actions, progress |
+| `--muted-foreground` | `#625E57` | secondary text |
+| `--primary` | `#2D7756` soft green | primary actions, progress |
 | `--primary-soft` | `#E4F1EA` | primary tints |
-| `--accent-coral` | `#E5735A` | highlights, "more natural" |
-| `--accent-coral-soft` | `#FBE9E4` | |
-| `--accent-plum` | `#7B6A9B` muted purple | gaps / insights (sparingly) |
-| `--accent-plum-soft` | `#EEEAF4` | |
-| `--warning` | `#C98A2B` | medium severity |
-| `--destructive` | `#C2483D` | errors, high severity |
+| `--coral` | `#AC4B36` | highlights, "more natural", grammar errors |
+| `--coral-soft` | `#FBE9E4` | |
+| `--plum` | `#6B5A8C` muted purple | gaps / insights (sparingly) |
+| `--plum-soft` | `#EEEAF4` | |
+| `--warning` | `#926013` | medium severity, sample notices |
+| `--warning-soft` | `#F8EEDC` | |
+| `--destructive` | `#B24238` | errors, high severity |
+| `--destructive-soft` | `#F8E4E1` | |
+
+Contrast rule: every text color is ≥ 4.5:1 on white, on the background and on its own `-soft` tint (small text
+in chips and notes sits on the tint). M11's axe scan found coral, destructive, warning and primary below that on
+their tints (3.79–4.30); they were darkened just enough (same hues), to 4.6–4.7 on the tints and 5.4–5.6 on white.
 
 Dark mode: deferred (V2).
 
@@ -58,7 +64,7 @@ Dark mode: deferred (V2).
   AI speaker name ("Professor Lee") instead of "Assistant", clear "End conversation" button.
 - **Indicators:** small ring or bar + number; always captioned "AI-estimated learning indicators".
 - **Indicator trends (Fluency Profile, M9):** small multiples, one single-series line per indicator on a shared
-  0–100 scale, in `--primary` (4.99:1 on white). The `--chart-1..5` tokens fail a categorical palette check
+  0–100 scale, in `--primary` (5.41:1 on white). The `--chart-1..5` tokens fail a categorical palette check
   (three read as gray, coral/green ΔE 6.2 under protan), so no chart relies on them for series identity. Hover
   tooltip per point, 2px line, 8px markers with a surface ring, a table view under the charts.
 - **Gap card:** title, plain-language description, severity chip, "Seen 5× in 3 conversations", example

@@ -43,6 +43,15 @@ export function pastDay(at: string | Date, now: Date, timeZone: string): string 
   return format(date, timeZone, sameYear ? { month: "short", day: "numeric" } : { dateStyle: "medium" });
 }
 
+/**
+ * pastDay() inside a sentence: "last yesterday" reads wrong, so it's "yesterday" / "today" in lower
+ * case, while weekdays and dates keep their capitals ("last Saturday", "last Sep 24").
+ */
+export function pastDayInline(at: string | Date, now: Date, timeZone: string): string {
+  const day = pastDay(at, now, timeZone);
+  return day === "Today" || day === "Yesterday" ? day.toLowerCase() : day;
+}
+
 /** A future moment, phrased to follow a verb: "later today", "tomorrow", "on Friday", "on Nov 12". */
 export function futureDay(at: string | Date, now: Date, timeZone: string): string {
   const date = typeof at === "string" ? new Date(at) : at;

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { expectNoA11yViolations } from "../a11y";
 import { admin, setupLiveUser, signIn } from "./helpers";
 
 // M8 Gap Tracker against the real Supabase project with the mock AI provider: a reviewed
@@ -40,6 +41,7 @@ test("a reviewed conversation's gap appears in the Gap Tracker, can be dismissed
   const evidence = page.getByRole("region", { name: "Examples from your conversations" });
   await expect(evidence).toContainText("I want ask about the homework.");
   await expect(evidence).toContainText("More natural");
+  await expectNoA11yViolations(page, "gap detail");
   await expect(evidence.getByRole("link", { name: "Office Hours" })).toHaveAttribute(
     "href",
     `/conversations/${conversationId}/review`,

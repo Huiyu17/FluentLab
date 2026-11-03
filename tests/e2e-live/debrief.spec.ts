@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { expectNoA11yViolations } from "../a11y";
 import { admin, setupLiveUser, signIn } from "./helpers";
 
 // M10 Real-Life Debrief against the real Supabase project with the mock AI provider.
@@ -38,6 +39,7 @@ test("a debrief is saved, shown, saved from, practiced and deleted", async ({ pa
     await expect(page.getByRole("region", { name: new RegExp(`^${register}`) })).toBeVisible();
   }
   await expect(page.getByRole("region", { name: "Why" })).toBeVisible();
+  await expectNoA11yViolations(page, "debrief result");
 
   // Save an expression; the saved state comes from the server and survives a reload.
   await page.getByRole("button", { name: "Add to My English: Sorry to bother you, …" }).click();

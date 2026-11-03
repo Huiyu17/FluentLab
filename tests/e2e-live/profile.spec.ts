@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { expectNoA11yViolations } from "../a11y";
 import { admin, setupLiveUser, signIn } from "./helpers";
 
 // M9 Fluency Profile against the real Supabase project: two reviewed conversations are inserted
@@ -62,6 +63,7 @@ test("the Fluency Profile charts reviewed conversations and lists them as a tabl
   await expect(fluency.locator("svg.recharts-surface")).toBeVisible();
   await expect(page.getByText(/AI-estimated learning indicators/).first()).toBeVisible();
 
+  await expectNoA11yViolations(page, "fluency profile");
   await page.getByText("Show the numbers as a table").click();
   const table = page.getByRole("table");
   await expect(table.getByRole("row")).toHaveCount(3);

@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { EmptyState } from "@/components/shared/states";
 import { getAuthState, requireOnboardedUser } from "@/lib/auth/dal";
 import { getSavedItem, type ItemDetail } from "@/lib/data/items";
-import { pastDay } from "@/lib/dates";
+import { pastDayInline } from "@/lib/dates";
 import { ITEM_TYPE_LABELS, REGISTER_LABELS, frequencyLabel } from "@/lib/items";
 import { DeleteItemButton } from "./delete-item-button";
 import { MasteryBar, reviewStatus } from "./saved-items-list";
@@ -85,7 +85,7 @@ function Progress({ item, now, timeZone }: { item: ItemDetail; now: Date; timeZo
             {item.lastReviewedAt && (
               <span className="font-normal text-muted-foreground">
                 {" "}
-                · last {pastDay(item.lastReviewedAt, now, timeZone).toLowerCase()}
+                · last {pastDayInline(item.lastReviewedAt, now, timeZone)}
               </span>
             )}
           </dd>

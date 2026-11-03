@@ -190,7 +190,8 @@ ARCHITECTURE.md → Conversation state.
 
 ### Gap recompute (M8): `recompute_language_gaps(user_id)`
 
-Internal (`execute` revoked from every client role; called by the RPCs). Recomputes **all** of the user's gaps
+Internal (`execute` revoked from `public`, `anon` and `authenticated`; called by the RPCs, and by `npm run
+db:seed-demo` with the server-only service-role key so demo gaps follow the same rules). Recomputes **all** of the user's gaps
 from their linked events in one set-based `update`, mirroring `src/lib/domain/gaps.ts` (docs/AI_SYSTEM.md → Gap
 detection): evidence = confidence ≥ 0.6 (compared as `real`), aggregates over negative evidence, status from the
 full history (`dismissed` sticky), severity from the last 336 hours (14 × 24 h), resolved after 720 hours. Only

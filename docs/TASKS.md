@@ -237,7 +237,35 @@ migration that touches RLS or grants, apply it to the Supabase project and rerun
       brief → start conversation, one scenario only
 - [x] Step 5: manually checked by the learner on 2026-11-03 with Gemini (debrief → phrasings → save → practice)
 
-## M11 — Testing + polish (golden-path E2E, a11y, empty/error states)
+## M11 — Testing + polish (golden-path E2E, a11y, empty/error states) ✅
+- [x] Step 1: `tests/e2e-live/golden-path.spec.ts` — the V1 key user flow in one run (real Supabase, mock AI):
+      sign in → onboarding (4 steps, real UI) → Today → Office Hours → end → review (annotated, expression saved) →
+      gap in the Gap Tracker → Today recommends it → focused brief → focused conversation; profile values checked
+      in the database. Starts at sign-in, not the sign-up form (each sign-up sends a real email through
+      Supabase's rate-limited built-in mailer; sign-up is unit-tested and was checked by hand in M2)
+- [x] Step 2: accessibility — `@axe-core/playwright` 4.14.0 (pinned); `tests/a11y.ts` fails on serious/critical WCAG
+      2.1 A/AA violations. CI: 16 pages × desktop/mobile + skip-link keyboard check (clean first time; a probe
+      confirmed axe ran ~20 rules per page). Live: onboarding, Today (new / with a gap), chat, review, Gap Tracker,
+      gap detail, focused brief, My English, history, Fluency Profile, debrief. Found and fixed: text tokens below
+      4.5:1 on their soft tints (coral 3.79, destructive 4.01, warning 4.30, primary 4.30 → darkened, same hues,
+      now 4.6–4.7; DESIGN_SYSTEM table synced with the code), and Recharts 3's keyboard layer inside the
+      aria-hidden chart (`accessibilityLayer={false}`; the table is the accessible view)
+- [x] Step 3: states audit of all 25 pages (loading / empty / error / unconfigured / not found). Every `(app)` page
+      streams behind Suspense with a skeleton (plus the group's `loading.tsx`), handles unconfigured mode (directly
+      or via `BriefPage` / `ItemDetailPage`), shows an empty state with a next step, and uses `notFound()` for
+      missing or someone else's rows; data loaders throw a generic "Could not load …" caught by `(app)/error.tsx`
+      (digest logged only). Gap found and fixed: landing, sign-in, sign-up and onboarding had no boundary of their
+      own and fell through to `global-error.tsx`, which drops the root layout; added `src/app/error.tsx`. Unit
+      tests: all three boundaries show a friendly message and Try again, never the error text
+- [x] Step 4: demo seed rewritten for M7–M10 (it predated them: incomplete snapshots, no corrections, hand-set gap
+      statuses with custom titles, a debrief without a result): 7 reviewed conversations over 40 days with
+      corrections, saveable expressions and rising indicators, events whose gaps are computed by
+      `recompute_language_gaps` (focus/high, focus/low, improving, resolved, emerging), reuse targets, a debrief
+      with its practice scenario; checked by signing in as the demo (pages, axe, screenshots). Fixed "last
+      saturday" / "last sep 24" (`pastDayInline`). README and ARCHITECTURE → Testing strategy rewritten to match
+      what actually runs
+- [x] Step 5: full run before closing — format, lint, typecheck, unit/database, build, `test:e2e`, `test:e2e:live`,
+      `db:verify-rls`
 
 ## M12 — Vercel deployment + production Supabase
 - [ ] Custom SMTP for Supabase Auth (built-in email only reaches org members and is heavily rate-limited;

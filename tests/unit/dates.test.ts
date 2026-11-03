@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { daysBetween, futureDay, greeting, longDate, pastDay } from "@/lib/dates";
+import { daysBetween, futureDay, greeting, longDate, pastDay, pastDayInline } from "@/lib/dates";
 
 const NY = "America/New_York";
 const NOW = new Date("2026-10-28T20:00:00Z"); // Wed 28 Oct, 4pm in New York
@@ -30,6 +30,13 @@ describe("dates", () => {
     expect(pastDay("2026-10-24T15:00:00Z", NOW, NY)).toBe("Saturday");
     expect(pastDay("2026-10-12T15:00:00Z", NOW, NY)).toBe("Oct 12");
     expect(pastDay("2025-12-30T15:00:00Z", NOW, NY)).toBe("Dec 30, 2025");
+  });
+
+  it("describes past days inside a sentence, keeping weekday and month capitals", () => {
+    expect(pastDayInline("2026-10-28T13:00:00Z", NOW, NY)).toBe("today");
+    expect(pastDayInline("2026-10-28T02:00:00Z", NOW, NY)).toBe("yesterday");
+    expect(pastDayInline("2026-10-24T15:00:00Z", NOW, NY)).toBe("Saturday");
+    expect(pastDayInline("2026-10-12T15:00:00Z", NOW, NY)).toBe("Oct 12");
   });
 
   it("describes future days", () => {

@@ -9,7 +9,7 @@ import { EmptyState } from "@/components/shared/states";
 import { Button } from "@/components/ui/button";
 import { getAuthState, requireOnboardedUser } from "@/lib/auth/dal";
 import { listGaps, type GapSummary } from "@/lib/data/gaps";
-import { pastDay } from "@/lib/dates";
+import { pastDayInline } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Gap Tracker" };
@@ -45,7 +45,7 @@ function GapList({ gaps, now, timeZone }: { gaps: GapSummary[]; now: Date; timeZ
             <span className="line-clamp-2 text-sm text-muted-foreground">{gap.description}</span>
             <span className="text-xs text-muted-foreground">
               Seen {gap.evidenceCount}× in {plural(gap.conversationsCount, "conversation")}
-              {gap.lastDetectedAt && ` · last ${pastDay(gap.lastDetectedAt, now, timeZone).toLowerCase()}`}
+              {gap.lastDetectedAt && ` · last ${pastDayInline(gap.lastDetectedAt, now, timeZone)}`}
             </span>
           </Link>
         </li>

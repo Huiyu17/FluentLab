@@ -210,6 +210,9 @@ uses four layers:
 ## Error and loading states
 
 - Route `loading.tsx` skeletons for every page; streamed typing indicator in chat.
+- Error boundaries: `(app)/error.tsx` inside the shell, `app/error.tsx` for landing/auth/onboarding (keeps the root
+  layout), `global-error.tsx` only when the root layout itself fails. All show a friendly message with Try again
+  and log only the error digest.
 - AI errors: typed `AIError` (`rate_limited`, `invalid_output`, `provider_down`, `timeout`) mapped to
   friendly messages. Structured outputs: Zod parse → one repair retry → fail.
 - Review progress UI: "Reading your conversation → Finding natural alternatives → Updating your profile".
@@ -249,12 +252,20 @@ quota RPC cannot be influenced by the caller.
 
 ## Testing strategy
 
-- **Unit (Vitest):** domain logic (gap aggregation, severity, scheduling, recommendations), Zod schemas,
-  prompt builders, input validation.
-- **AI contract tests:** fixture transcripts run through services with the mock provider; schema
-  conformance. Optional `npm run test:ai` hits the real provider against golden fixtures (manual).
-- **Integration:** server actions against a local Supabase (`supabase start`), including RLS tests that
-  user A cannot read user B's rows.
-- **E2E (Playwright, mock AI):** the V1 golden path: sign up → onboarding → office hours → end →
-  review → save expressions → gap appears → Today shows recommendation.
-- CI (GitHub Actions): lint, typecheck, unit, build on every push.
+What runs where (as built; M11):
+
+- **Unit and component (Vitest, `npm test`):** domain logic (gap rules, recommendations, scheduling, trends),
+  Zod schemas, prompt builders (learner text stays escaped data), services with the mock provider, server
+  actions and data loaders against a fake Supabase client, components in jsdom.
+- **Database (Vitest on PGlite, `npm test`):** every migration on Postgres in WASM with a stubbed `auth` schema:
+  RLS, grants, same-owner FKs, the RPCs, and SQL ↔ TypeScript agreement for scheduling (69 sequences) and gap
+  rules (252 random histories). PGlite isn't Supabase, so after RLS/grant changes `npm run db:verify-rls`
+  repeats the checks through PostgREST on the real project as two throwaway users. No local Supabase.
+- **E2E in CI (`npm run test:e2e`):** a production build in unconfigured mode with the mock AI, desktop and
+  mobile, plus axe (WCAG 2.1 A/AA, serious/critical fail) on every page and a keyboard skip-link check.
+- **Live E2E (`npm run test:e2e:live`, not in CI):** the real Supabase project with the mock AI and throwaway
+  users: the V1 golden path (sign in → onboarding → office hours → review → save → gap → Today → focused
+  practice) and one spec per feature, with axe on the pages that only have content when signed in. It
+  starts at sign-in because each sign-up sends a real email through the rate-limited built-in mailer.
+- **Live AI (`npm run test:ai`, manual):** a few real Gemini calls per service; prints the output for review.
+- CI (GitHub Actions): format, lint, typecheck, unit + database tests, build and E2E on every push.
