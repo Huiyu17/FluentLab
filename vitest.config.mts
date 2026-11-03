@@ -11,5 +11,8 @@ export default defineConfig({
     // PGlite boots a Postgres instance per suite.
     testTimeout: 30_000,
     hookTimeout: 60_000,
+    // One worker per core (31 on a 32-thread machine) starting jsdom/PGlite at once made some workers
+    // miss Vitest's start-up timeout ("Timeout waiting for worker to respond"), so cap it.
+    maxWorkers: 8,
   },
 });

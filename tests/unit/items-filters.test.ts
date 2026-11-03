@@ -55,3 +55,16 @@ describe("My English filters", () => {
     expect(itemHref("grammar", "x")).toBe("/expressions/x");
   });
 });
+
+describe("isDue / dueCutoff", () => {
+  it("counts items due within a minute as due now (database and app clocks differ by seconds)", async () => {
+    const { DUE_TOLERANCE_MS, dueCutoff, isDue } = await import("@/lib/items");
+    const now = new Date("2026-11-02T12:00:00.000Z");
+    expect(dueCutoff(now).getTime() - now.getTime()).toBe(DUE_TOLERANCE_MS);
+    expect(isDue({ nextReviewAt: "2026-11-02T11:00:00.000Z" }, now)).toBe(true);
+    expect(isDue({ nextReviewAt: "2026-11-02T12:00:01.500Z" }, now)).toBe(true);
+    expect(isDue({ nextReviewAt: "2026-11-02T12:01:00.000Z" }, now)).toBe(true);
+    expect(isDue({ nextReviewAt: "2026-11-02T12:01:00.001Z" }, now)).toBe(false);
+    expect(isDue({ nextReviewAt: "2026-11-03T12:00:00.000Z" }, now)).toBe(false);
+  });
+});

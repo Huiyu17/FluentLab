@@ -72,8 +72,20 @@ export function itemFiltersQuery(filters: ItemFilters): string {
   return text ? `?${text}` : "";
 }
 
+/**
+ * Items due within this margin count as due now. next_review_at is set with the database clock and
+ * compared with the app server's clock; a second of skew made an item added a moment ago look
+ * "not due yet". Nobody needs second precision for spaced repetition.
+ */
+export const DUE_TOLERANCE_MS = 60_000;
+
+/** The latest next_review_at that counts as due at `now`. */
+export function dueCutoff(now: Date): Date {
+  return new Date(now.getTime() + DUE_TOLERANCE_MS);
+}
+
 export function isDue(item: { nextReviewAt: string }, now: Date): boolean {
-  return new Date(item.nextReviewAt).getTime() <= now.getTime();
+  return new Date(item.nextReviewAt).getTime() <= dueCutoff(now).getTime();
 }
 
 /** "expression" covers everything that isn't a single word (phrases, expressions, grammar). */

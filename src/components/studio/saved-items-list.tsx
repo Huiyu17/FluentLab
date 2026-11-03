@@ -1,11 +1,11 @@
 import Link from "next/link";
 import type { SavedItem } from "@/lib/data/items";
 import { futureDay } from "@/lib/dates";
-import { ITEM_TYPE_LABELS, itemHref } from "@/lib/items";
+import { ITEM_TYPE_LABELS, isDue, itemHref } from "@/lib/items";
 import { cn } from "@/lib/utils";
 
 export function reviewStatus(nextReviewAt: string, now: Date, timeZone: string): string {
-  return new Date(nextReviewAt) <= now ? "Due now" : `Review ${futureDay(nextReviewAt, now, timeZone)}`;
+  return isDue({ nextReviewAt }, now) ? "Due now" : `Review ${futureDay(nextReviewAt, now, timeZone)}`;
 }
 
 /** Mastery as a small bar plus a percentage (screen readers get the number). */
@@ -37,7 +37,7 @@ export function SavedItemsList({
   return (
     <ul className="flex flex-col divide-y rounded-2xl border bg-card">
       {items.map((item) => {
-        const due = new Date(item.nextReviewAt) <= now;
+        const due = isDue(item, now);
         return (
           <li key={item.id}>
             <Link

@@ -2,7 +2,7 @@ import "server-only";
 
 import { z } from "zod";
 import { REGISTERS, StudioCardSchema, type Register, type StudioCard } from "@/lib/ai/schemas/studio";
-import { CuratedDetailsSchema, ITEM_TYPES, type CuratedDetails, type ItemType } from "@/lib/items";
+import { CuratedDetailsSchema, ITEM_TYPES, dueCutoff, type CuratedDetails, type ItemType } from "@/lib/items";
 import { createClient } from "@/lib/supabase/server";
 
 export type SavedItem = {
@@ -195,7 +195,7 @@ export async function listDueItems(
 ): Promise<{ items: ReviewItem[]; dueCount: number; nextDueAt: string | null } | null> {
   const supabase = await createClient();
   if (!supabase) return null;
-  const nowIso = now.toISOString();
+  const nowIso = dueCutoff(now).toISOString();
   const [due, next] = await Promise.all([
     supabase
       .from("learning_items")

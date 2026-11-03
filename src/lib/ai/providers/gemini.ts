@@ -111,11 +111,31 @@ export function toAIError(error: unknown): unknown {
   return new AIError("provider_down", undefined, { cause: error });
 }
 
-/** Gemini's structured output takes plain JSON Schema; drop the `$schema` marker Zod adds. */
-function geminiSchema(jsonSchema: Record<string, unknown>): Record<string, unknown> {
-  const rest = { ...jsonSchema };
-  delete rest.$schema;
-  return rest;
+// Size constraints Gemini doesn't enforce but counts towards schema complexity: with them, the M8
+// review schema (corrections + events, three long enums) was rejected with 400 INVALID_ARGUMENT.
+// Zod checks every limit on the answer anyway (structured.ts), so nothing is lost.
+const UNENFORCED_KEYWORDS = new Set([
+  "$schema",
+  "minLength",
+  "maxLength",
+  "minItems",
+  "maxItems",
+  "minimum",
+  "maximum",
+]);
+
+/** The JSON Schema sent to Gemini: Zod's schema without `$schema` and size constraints, at every level. */
+export function geminiSchema(jsonSchema: unknown): Record<string, unknown> {
+  const strip = (node: unknown): unknown => {
+    if (Array.isArray(node)) return node.map(strip);
+    if (node === null || typeof node !== "object") return node;
+    return Object.fromEntries(
+      Object.entries(node).flatMap(([key, value]) =>
+        UNENFORCED_KEYWORDS.has(key) ? [] : [[key, strip(value)]],
+      ),
+    );
+  };
+  return strip(jsonSchema) as Record<string, unknown>;
 }
 
 export function createGeminiProvider({ apiKey, models, client }: GeminiConfig): LLMProvider {

@@ -4,7 +4,7 @@ import { z } from "zod";
 import { AIError, AI_ERROR_MESSAGES } from "@/lib/ai/errors";
 
 vi.mock("server-only", () => ({}));
-const { createGeminiProvider } = await import("@/lib/ai/providers/gemini");
+const { createGeminiProvider, geminiSchema } = await import("@/lib/ai/providers/gemini");
 const { generateObject } = await import("@/lib/ai/structured");
 const { getProvider } = await import("@/lib/ai/provider");
 
@@ -115,6 +115,30 @@ describe("Gemini provider", () => {
       responseJsonSchema: { type: "object" },
     });
     expect(client.generateContent.mock.calls[0]![0].config.responseJsonSchema).not.toHaveProperty("$schema");
+  });
+
+  it("strips size constraints at every level but keeps the structure and enums", () => {
+    const schema = z.toJSONSchema(
+      z.object({
+        name: z.string().min(1).max(10),
+        tags: z.array(z.object({ kind: z.enum(["a", "b"]), score: z.number().min(0).max(1) })).max(3),
+        note: z.string().max(5).nullable(),
+      }),
+    );
+    const stripped = geminiSchema(schema);
+    expect(JSON.stringify(stripped)).not.toMatch(/minLength|maxLength|maxItems|minimum|maximum|\$schema/);
+    expect(stripped).toMatchObject({
+      type: "object",
+      required: ["name", "tags", "note"],
+      properties: {
+        name: { type: "string" },
+        tags: {
+          type: "array",
+          items: { properties: { kind: { enum: ["a", "b"] }, score: { type: "number" } } },
+        },
+        note: { anyOf: [{ type: "string" }, { type: "null" }] },
+      },
+    });
   });
 
   it("feeds unparseable JSON into generateObject's repair retry", async () => {

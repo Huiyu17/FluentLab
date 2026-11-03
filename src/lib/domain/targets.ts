@@ -7,6 +7,8 @@
  * the brief shows the same picks that starting the conversation (M6) will store.
  */
 
+import { isDue } from "@/lib/items";
+
 export const MAX_TARGETS = 3;
 /** Items at or above this mastery are left for spaced review, not conversation practice. */
 export const WELL_KNOWN_MASTERY = 0.8;
@@ -22,8 +24,7 @@ export function pickTargetItems<T extends TargetCandidate>(
   now: Date,
   max: number = MAX_TARGETS,
 ): T[] {
-  const nowMs = now.getTime();
-  const due = (item: T) => new Date(item.nextReviewAt).getTime() <= nowMs;
+  const due = (item: T) => isDue(item, now);
 
   return items
     .filter((item) => due(item) || item.masteryScore < WELL_KNOWN_MASTERY)

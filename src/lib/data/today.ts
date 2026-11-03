@@ -3,6 +3,7 @@ import "server-only";
 import { z } from "zod";
 import type { Profile } from "@/lib/auth/dal";
 import { conversationHref } from "@/lib/domain/conversation";
+import { dueCutoff } from "@/lib/items";
 import { buildTodayPlan, rankGaps, type PlanGap, type Recommendation } from "@/lib/domain/recommendations";
 import { dayKey, summarizeStreak, type DayKey, type StreakSummary } from "@/lib/domain/streak";
 import { SCORE_DIMENSIONS, type ScoreDimension } from "@/lib/domain/taxonomy";
@@ -123,7 +124,7 @@ export async function getTodayData(
   const supabase = await createClient();
   if (!supabase) return null;
 
-  const nowIso = now.toISOString();
+  const nowIso = dueCutoff(now).toISOString();
   const since = new Date(now.getTime() - STREAK_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
   const [

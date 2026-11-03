@@ -16,7 +16,9 @@ generateObject<T>(provider, req & { name; schema: z.ZodType<T> }): Promise<T>
   `generateContent` / `generateContentStream`; structured output with `responseMimeType: "application/json"` +
   `responseJsonSchema` (Gemini ignores `minLength`/`maxLength`, so Zod stays the real check). Chat uses thinking
   level LOW, analysis MEDIUM; thinking tokens count toward `maxOutputTokens`, so an empty answer
-  (`finishReason: MAX_TOKENS`) is an `invalid_output` error, never an empty reply. Default timeouts 30 s
+  (`finishReason: MAX_TOKENS`) is an `invalid_output` error, never an empty reply. The schema sent to Gemini drops
+`$schema` and the size keywords it doesn't enforce (`minLength`, `maxLength`, `minItems`, `maxItems`, `minimum`,
+`maximum`): with them the M8 review schema was rejected as too complex (400). Zod still checks every limit. Default timeouts 30 s
   (request) / 60 s (stream); one retry for 5xx only. **429 is never retried and never falls back to another
   provider or a paid tier**: it becomes `AIError("provider_quota")` with a clear message. Safety blocks become
   `AIError("blocked")`. Verified 2026-10-29 with `npm run test:ai` (text, stream, Studio card) on

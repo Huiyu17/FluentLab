@@ -157,7 +157,7 @@ migration that touches RLS or grants, apply it to the Supabase project and rerun
 - On-demand "How could I say this?" help during a conversation (only when the learner asks; shown as a side note,
   the character stays in the scene). Needs a PRODUCT.md principle change first.
 
-## M8 — Gap Tracker (extractor, deterministic aggregation, gap pages)
+## M8 — Gap Tracker (extractor, deterministic aggregation, gap pages) ✅
 - Decisions 2026-10-29: reviewer + extractor in **one** AI call; conversations reviewed in M7 are not re-analysed.
 - [x] Step 1: `domain/gaps.ts` — evidence threshold, activation, improving/resolved since the last negative event,
       14-day severity, sticky dismissed, as a pure function of the event history; `GAP_DETAILS` titles and
@@ -177,8 +177,17 @@ migration that touches RLS or grants, apply it to the Supabase project and rerun
       M conversations", last seen; empty and unconfigured states), `/gaps/[id]` (description, counts, evidence
       "You said → More natural" linked to the review, good usages, Dismiss with confirm / Restore via
       `restore_gap`); `data/gaps.ts`, `actions/gaps.ts`, shared `gap-badges.tsx`; `test:e2e:live` gaps 1/1
-- [ ] Live Gemini check of `reviewer-v2` (`npm run test:ai -- -t "live reviewer"`): blocked on 2026-10-29 by the
-      free tier's **20 requests/day** per model (429 `provider_quota`, handled correctly); rerun after the reset
+- [x] Live Gemini check of `reviewer-v2` (2026-10-30): first attempt got **400 INVALID_ARGUMENT** — the combined
+      corrections + events schema was too complex for Gemini; `geminiSchema` now strips size constraints
+      (`minLength`/`maxLength`/`minItems`/`maxItems`/`minimum`/`maximum`) that Gemini doesn't enforce (Zod still
+      checks them). Then passed in ~13 s: articles (grammar_error 0.9), "Explain it to me again" (overly_direct
+      0.95), "walk me through" (good_usage 0.95), nothing dropped
+- [x] Step 6: manually checked by the learner with Gemini (end → review → patterns → Gap Tracker, dismiss/restore,
+      Today focus areas); `vitest.config.mts` caps `maxWorkers` at 8 (31 parallel workers on a 32-thread machine
+      missed Vitest's start-up timeout, likely the unexplained `npm test` exit 1 seen in M6)
+- [x] Fix found while closing M8: "due now" compared the database-set `next_review_at` with the app server's
+      clock, so ~1 s of skew made an item added a moment ago look not due (`test:e2e:live` My English failed once).
+      `isDue` / `dueCutoff` in `src/lib/items.ts` now count items due within 60 s as due, used everywhere
 
 ## M9 — Recommendations + Reuse (targets in scenarios, Today plan, Fluency Profile charts)
 
